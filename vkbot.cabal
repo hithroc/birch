@@ -16,3 +16,6 @@ executable vkbot
   build-depends:       base >= 4.7 && < 5
                ,       VKHS
                ,       aeson
+               ,       bytestring
+               ,       parsec
+               ,       containers
