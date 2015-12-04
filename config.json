@@ -2,4 +2,6 @@
 , "password": ""
 , "appID": ""
 , "imageURL": "http://wow.zamimg.com/images/hearthstone/cards/enus/original/"
+, "jsonURL": "https://hearthstonejson.com/json/"
+, "data": "data/"
 }

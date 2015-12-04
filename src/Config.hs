@@ -9,6 +9,8 @@ data Config = Config
     , vkPass :: String
     , appID :: String
     , imageURL :: String
+    , jsonURL :: String
+    , dataFol :: String
     }
 
 instance FromJSON Config where
@@ -17,6 +19,8 @@ instance FromJSON Config where
                         <*> v .: "password"
                         <*> v .: "appID"
                         <*> v .: "imageURL"
+                        <*> v .: "jsonURL"
+                        <*> v .: "data"
 
 loadConfig :: FilePath -> IO (Maybe Config)
 loadConfig path = decode <$> BS.readFile path
