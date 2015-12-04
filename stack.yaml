@@ -16,7 +16,7 @@ extra-deps:
 - regexpr-0.5.4
 - mtlparse-0.1.4.0
 - rtld-0.0.2
-
+- aeson-lens-0.5.0.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}

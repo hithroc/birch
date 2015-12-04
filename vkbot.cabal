@@ -16,6 +16,10 @@ executable vkbot
   build-depends:       base >= 4.7 && < 5
                ,       VKHS
                ,       aeson
+               ,       aeson-lens
                ,       bytestring
                ,       parsec
                ,       containers
+               ,       wreq
+               ,       mtl
+               ,       lens
