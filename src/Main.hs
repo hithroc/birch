@@ -22,4 +22,5 @@ main = do
     (Just cfg) <- loadConfig "config.json"
     cards <- runReaderT (readCards "enUS") cfg
     n <- getLine
-    putStr . unlines . map printCard . searchByName n $ cards
+    let requests = map snd . getCards $ n
+    putStr . unlines $ map (\n -> unlines . map printCard . searchByName n $ cards) requests

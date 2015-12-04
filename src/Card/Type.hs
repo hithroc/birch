@@ -68,9 +68,8 @@ printCard card
         ++ "/"
         ++ show (maybe 0 id $ health card)
         ++ maybe "" ((" - " ++) . show) (race card)
-        ++ "\n"
-        ++ maybe "" (++"\n") (text card)
-        ++ maybe "" (++"\n") (flavor card)
+        ++ maybe "" ("\n"++) (text card)
+        ++ maybe "" ("\n"++) (flavor card)
     | cardType card == Spell =
         name card ++ " - " 
         ++ show (rarity card) 
@@ -80,9 +79,8 @@ printCard card
         ++ show (playerClass card)
         ++ "\n"
         ++ "(" ++ show (maybe 0 id $ cost card) ++ ") "
-        ++ "\n"
-        ++ maybe "" (++"\n") (text card)
-        ++ maybe "" (++"\n") (flavor card)
+        ++ maybe "" ("\n"++) (text card)
+        ++ maybe "" ("\n"++) (flavor card)
     | cardType card == Hero =
         name card ++ " - " 
         ++ show (rarity card) 
@@ -93,9 +91,8 @@ printCard card
         ++ "\n"
         ++ "HP:" ++ show (maybe 0 id $ health card)
         ++ maybe "" ((" - " ++) . show) (race card)
-        ++ "\n"
-        ++ maybe "" (++"\n") (text card)
-        ++ maybe "" (++"\n") (flavor card)
+        ++ maybe "" ("\n"++) (text card)
+        ++ maybe "" ("\n"++) (flavor card)
     | cardType card == HeroPower =
         name card ++ " - " 
         ++ show (rarity card) 
@@ -105,9 +102,8 @@ printCard card
         ++ show (playerClass card)
         ++ "\n"
         ++ "(" ++ show (maybe 0 id $ cost card) ++ ") "
-        ++ "\n"
-        ++ maybe "" (++"\n") (text card)
-        ++ maybe "" (++"\n") (flavor card)
+        ++ maybe "" ("\n"++) (text card)
+        ++ maybe "" ("\n"++) (flavor card)
     | cardType card == Weapon =
         name card ++ " - " 
         ++ show (rarity card) 
@@ -120,9 +116,8 @@ printCard card
         ++ show (maybe 0 id $ attack card)
         ++ "/"
         ++ show (maybe 0 id $ durability card)
-        ++ "\n"
-        ++ maybe "" (++"\n") (text card)
-        ++ maybe "" (++"\n") (flavor card)
+        ++ maybe "" ("\n"++) (text card)
+        ++ maybe "" ("\n"++) (flavor card)
     | otherwise = name card ++ " - Not supported"
 
 priority :: [a] -> [a -> Bool] -> a
