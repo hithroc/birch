@@ -23,3 +23,5 @@ executable vkbot
                ,       wreq
                ,       mtl
                ,       lens
+               ,       http-client
+               ,       hslogger

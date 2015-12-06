@@ -11,6 +11,7 @@ data Config = Config
     , imageURL :: String
     , jsonURL :: String
     , dataFol :: String
+    , locales :: [String]
     }
 
 instance FromJSON Config where
@@ -21,6 +22,7 @@ instance FromJSON Config where
                         <*> v .: "imageURL"
                         <*> v .: "jsonURL"
                         <*> v .: "data"
+                        <*> v .: "locales"
 
 loadConfig :: FilePath -> IO (Maybe Config)
 loadConfig path = decode <$> BS.readFile path

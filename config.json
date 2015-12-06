@@ -1,7 +1,8 @@
 { "login": ""
 , "password": ""
 , "appID": ""
-, "imageURL": "http://wow.zamimg.com/images/hearthstone/cards/enus/original/"
+, "imageURL": "http://wow.zamimg.com/images/hearthstone/cards/"
 , "jsonURL": "https://hearthstonejson.com/json/"
 , "data": "data/"
+, "locales": ["enUS", "ruRU"]
 }
