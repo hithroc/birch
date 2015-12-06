@@ -23,7 +23,7 @@ card = do
     char '['
     tags <- many (try tag)
     name <- many1 $ try $ do
-        notFollowedBy (char ']' >>= \_ -> char ']')
+        notFollowedBy (char ']' *> char ']')
         anyChar
     char ']'
     char ']'

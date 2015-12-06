@@ -39,4 +39,14 @@ initLogger = do
 
 main' :: (MonadReader Config m, MonadIO m) => m ()
 main' = do
-    undefined
+    updateSets
+    cards <- readCards "enUS"
+    loop cards
+    where
+        loop cards = do
+            text <- liftIO $ getLine
+            liftIO $ print $ getCards text
+            let search = searchCards cards (map snd $ getCards text)
+            liftIO $ print search
+            liftIO . putStr . unlines . map printCard $ search
+            loop cards

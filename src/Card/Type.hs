@@ -52,6 +52,7 @@ data Card = Card { cardID :: String
                  , text :: Maybe String
                  , flavor :: Maybe String
                  }
+    deriving Show
 
 printCard :: Card -> String
 printCard card
