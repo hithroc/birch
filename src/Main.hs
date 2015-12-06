@@ -3,9 +3,7 @@
 module Main where
 
 import Config
-import Card.Parser
-import Card.Json
-import Card.Type
+import Card
 import Data.Aeson
 import Data.Aeson.Lens
 import Data.Maybe
@@ -19,9 +17,6 @@ import System.Log.Formatter
 import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple
 import System.IO
-
-searchByName :: String -> [Card] -> [Card]
-searchByName n = filter (\c -> isInfixOf (map toUpper n) (map toUpper $ name c))
 
 main :: IO ()
 main = do
