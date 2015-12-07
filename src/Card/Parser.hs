@@ -32,7 +32,7 @@ card = do
 getCards :: String -> [([CardTag], String)]
 getCards str = case parse (many $ try one) "" str of
     Left e -> traceShow e []
-    Right xs -> map (\(ts, n) -> (catMaybes $ map cardTag ts, n)) xs
+    Right xs -> map (\(ts, n) -> (mapMaybe cardTag ts, n)) xs
     where
         one = card <|> (anyChar >> one)
 

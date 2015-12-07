@@ -1,13 +1,22 @@
-module Card (module Card.Parser, module Card.Type, module Card.Json, searchCards) where
+module Card (module X, searchBy, MonadCardsDB) where
 
-import Card.Parser
-import Card.Type
-import Card.Json
+import Card.Parser as X
+import Card.Type as X
+import Card.Json as X
 import Data.Char
 import Data.List
+import Control.Monad.Ether.Implicit
+import qualified Data.Map as Map
 
-searchByName :: [Card] -> String -> [Card]
-searchByName cards n = filter (\c -> isInfixOf (map toUpper n) (map toUpper $ name c)) cards
+type Cards = Map.Map String [Card]
 
-searchCards :: [Card] -> [String] -> [Card]
-searchCards cards = concat . map (searchByName cards)
+type MonadCardsDB = MonadReader Cards
+
+searchBy' :: (Card -> String) -> String -> [Card] -> [Card]
+searchBy' f n = filter $ \c -> map toUpper n `isInfixOf` map toUpper (f c)
+
+searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
+searchBy f name = do
+    cards <- ask
+    return . Map.map (searchBy' f name) $ cards
+

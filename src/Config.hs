@@ -1,8 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Config where
 
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BS
+import Control.Monad.Ether.Implicit
 
 data Config = Config
     { vkLogin :: String
@@ -13,6 +13,8 @@ data Config = Config
     , dataFol :: String
     , locales :: [String]
     }
+
+type MonadConfig = MonadReader Config
 
 instance FromJSON Config where
     parseJSON (Object v) = Config 

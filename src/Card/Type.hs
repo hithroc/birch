@@ -138,8 +138,8 @@ instance FromJSON Card where
         playerClass' <- v .:? "playerClass"
         text' <- v .:? "text"
         flavor' <- v .:? "flavor"
-        let playerClass'' = maybe Neutral id (playerClass' >>= readMaybe)
-            rarity'' = maybe Free id (readMaybe rarity')
+        let playerClass'' = fromMaybe Neutral (playerClass' >>= readMaybe)
+            rarity'' = fromMaybe Free (readMaybe rarity')
         case cardType of
             "Minion" -> do
                 cost' <- v .: "cost"
