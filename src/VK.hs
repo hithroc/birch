@@ -24,12 +24,15 @@ defaultDispatcher :: Dispatcher
 defaultDispatcher at ver method args = do
     r <- W.get toUrl
     return . BS.unpack $ r ^. W.responseBody
-    where toUrl = foldr (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
+    where toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
           params = map (\(x, y) -> x ++ "=" ++ y) withat
           withat = [("access_token", at)] ++ args
 
 defaultVKData :: VKData
 defaultVKData = VKData "" [V.Messages] defaultDispatcher "5.40"
+
+runVK :: StateT VKData m a -> m a
+runVK m = evalStateT m defaultVKData
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m (String)
 dispatch method args = do
