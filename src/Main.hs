@@ -20,6 +20,7 @@ import System.IO
 
 main :: IO ()
 main = do
+    hSetBuffering stdout NoBuffering
     initLogger
     infoM rootLoggerName "Logging initiated"
     mcfg <- loadConfig "config.json"
@@ -44,9 +45,9 @@ main' = do
     loop cards
     where
         loop cards = do
+            liftIO . putStrLn $ "Enter any text:"
             text <- liftIO $ getLine
-            liftIO $ print $ getCards text
             let search = searchCards cards (map snd $ getCards text)
-            liftIO $ print search
+            liftIO . print $ search
             liftIO . putStr . unlines . map printCard $ search
             loop cards
