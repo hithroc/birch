@@ -16,13 +16,13 @@ executable vkbot
                ,       Card.Type
                ,       Card.Json
                ,       Config
+               ,       VK
   main-is:             Main.hs
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                     ,  ConstraintKinds
                     ,  FlexibleContexts
   build-depends:       base >= 4.7 && < 5
-               , VKHS
                ,       aeson
                ,       aeson-lens
                ,       bytestring
@@ -34,3 +34,4 @@ executable vkbot
                ,       http-client
                ,       hslogger
                ,       ether
+               ,       VKHS
