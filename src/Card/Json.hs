@@ -50,10 +50,14 @@ updateSets = do
     case zipMaybe last' ver' of
         Nothing -> do
             liftIO $ warningM "main.cards" "Failed to fetch versions"
-        Just (ver, last) -> do
+        Just (last, ver) -> do
             if ver /= last  then do
                 liftIO $ infoM rootLoggerName $ "The local cards version (" ++ ver  ++ ") in different from server's verion (" ++ last ++ ")"
                 downloadSets
+                url <- jsonURL <$> ask
+                folder <- dataFol <$> ask
+                r <- liftIO . get $ url ++ "version.json"
+                liftIO $ BS.writeFile (folder ++ "version.json") (r ^. responseBody)
             else
                 return ()
     where
