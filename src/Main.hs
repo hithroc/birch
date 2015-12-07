@@ -17,6 +17,8 @@ import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple
 import System.IO
 import qualified Data.Map as Map
+import VK
+import VK.Messages
 
 main :: IO ()
 main = do
@@ -43,6 +45,7 @@ main' = do
     updateSets
     locs <- locales <$> ask
     cards <- traverse readCards locs
+    evalStateT loop' defaultVKData
     runReaderT loop (Map.fromList $ zip locs cards)
     where
         loop :: (MonadConfig m, MonadCardsDB m, MonadIO m) => m ()
@@ -53,3 +56,8 @@ main' = do
             liftIO . print $ search
             liftIO . putStr . unlines . map printCard . concat . Map.elems $ search
             loop
+        loop' :: MonadVK m => m ()
+        loop' = do
+            threadDelay 1000000
+            msgs <- getMessages
+            print msgs

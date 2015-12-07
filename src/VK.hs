@@ -7,15 +7,16 @@ import Control.Monad.Trans
 import qualified Network.Wreq as W
 import qualified Web.VKHS as V
 import System.Log.Logger
-import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.ByteString.Lazy as BS
 
-type Dispatcher = String -> String -> String -> [(String, String)] -> IO (String)
+type Dispatcher = String -> String -> String -> [(String, String)] -> IO (BS.ByteString)
 
 data VKData = VKData 
     { accessToken :: String
     , accessRights :: [V.AccessRight]
     , dispatcher :: Dispatcher 
     , apiVersion :: String
+    , lastMessageID :: Integer
     }
 
 type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
@@ -23,18 +24,15 @@ type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver method args = do
     r <- W.get toUrl
-    return . BS.unpack $ r ^. W.responseBody
+    return $ r ^. W.responseBody
     where toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
           params = map (\(x, y) -> x ++ "=" ++ y) withat
           withat = [("access_token", at)] ++ args
 
 defaultVKData :: VKData
-defaultVKData = VKData "" [V.Messages] defaultDispatcher "5.40"
+defaultVKData = VKData "" [V.Messages] defaultDispatcher "5.40" 0
 
-runVK :: StateT VKData m a -> m a
-runVK m = evalStateT m defaultVKData
-
-dispatch :: MonadVK m => String -> [(String, String)] -> m (String)
+dispatch :: MonadVK m => String -> [(String, String)] -> m (BS.ByteString)
 dispatch method args = do
     d <- dispatcher <$> get
     at <- accessToken <$> get
