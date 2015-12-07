@@ -2,17 +2,23 @@ module VK.Messages where
 
 import VK
 import Data.Aeson
+import Data.Maybe
 import Data.Aeson.Lens
 import Control.Lens
 import Control.Monad.Ether.Implicit
+import Control.Monad.Trans
+import System.Log.Logger
+import qualified Data.HashMap.Strict as Map
 
 data ID = UserID Int | ChatID Int
     deriving Show
 data InMessage = InMessage
-    { msgID :: Int
+    { msgID :: Integer
     , uid :: ID
     , message :: String
     }
+    deriving Show
+data MessageResponse = MessageResponse [InMessage]
     deriving Show
 
 instance FromJSON InMessage where
@@ -21,14 +27,19 @@ instance FromJSON InMessage where
         userid <- v .: "user_id"
         chatid <- v .:? "chat_id"
         body <- v .: "body"
-        return $ InMessage (read mid) (maybe (UserID $ read userid) (ChatID . read) chatid) body
+        return $ InMessage (mid) (maybe (UserID userid) ChatID chatid) body
+
+instance FromJSON MessageResponse where
+    parseJSON (Object v) = do
+        resbody <- v .: "response"
+        items <- resbody .: "items"
+        return $ MessageResponse items
 
 getMessages :: MonadVK m => m ([InMessage])
 getMessages = do
     lid <- lastMessageID <$> get
     r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "20")]
-    let resp :: Maybe Value
-        resp = decode r
-        msgs :: Maybe [Value]
-        msgs = resp ^. key "response" . key "items"
-    return $ maybe [] id $ join $ map (map $ encode . decode) msgs
+    liftIO $ print r
+    let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
+    when (not $ null msgs) $ modify (\x -> x {lastMessageID = maximum $ map (msgID) msgs})
+    return msgs

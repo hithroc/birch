@@ -28,6 +28,7 @@ executable vkbot
                ,       bytestring
                ,       parsec
                ,       containers
+               ,       unordered-containers
                ,       wreq
                ,       mtl
                ,       lens

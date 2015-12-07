@@ -23,6 +23,7 @@ type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver method args = do
+    print at
     r <- W.get toUrl
     return $ r ^. W.responseBody
     where toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
