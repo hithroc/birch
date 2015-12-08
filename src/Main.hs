@@ -17,6 +17,8 @@ import VK
 import VK.Messages
 import Control.Concurrent
 
+import Debug.Trace
+
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
@@ -67,6 +69,8 @@ main' = do
                     $ filtCards
             sendMessage retmsg
 
+        prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+
         prepareCard :: MonadCardsDB m => (S.Set CardTag, String) -> m (Maybe Card)
         prepareCard (tags, n) = do
             loccards <- searchBy name n
@@ -74,12 +78,12 @@ main' = do
             if null cards then
                 return Nothing
             else do
-                let resultcard = priority cards [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+                let resultcard = priority cards prio
                 Just <$> foldl (\a b -> a >>= dealWithTag b) (return resultcard) tags
             
         dealWithTag :: MonadCardsDB m => CardTag -> Card -> m Card
         dealWithTag (Locale l) c = do
-            cards <- searchBy cardID $ cardID c
+            cards <- exactSearchBy cardID $ cardID c
             case Map.lookup l cards >>= listToMaybe of
                 Nothing -> return c
                 Just c' -> return c'

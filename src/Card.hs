@@ -1,4 +1,4 @@
-module Card (module X, searchBy, MonadCardsDB, printCards, priority) where
+module Card (module X, searchBy, exactSearchBy, MonadCardsDB, printCards, priority) where
 
 import Card.Parser as X
 import Card.Type as X
@@ -18,10 +18,18 @@ type MonadCardsDB = MonadReader Cards
 searchBy' :: (Card -> String) -> String -> [Card] -> [Card]
 searchBy' f n = filter $ \c -> map toUpper n `isInfixOf` map toUpper (f c)
 
+exactSearchBy' :: (Card -> String) -> String -> [Card] -> [Card]
+exactSearchBy' f n = filter $ \c -> n == (f c)
+
 searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
 searchBy f n = do
     cards <- ask
     return . Map.map (searchBy' f n) $ cards
+
+exactSearchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
+exactSearchBy f n = do
+    cards <- ask
+    return . Map.map (exactSearchBy' f n) $ cards
 
 priority :: [a] -> [a -> Bool] -> a
 priority xs [] = head xs
