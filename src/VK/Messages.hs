@@ -12,22 +12,22 @@ import qualified Data.HashMap.Strict as Map
 
 data ID = UserID Int | ChatID Int
     deriving Show
-data InMessage = InMessage
+data Message = Message
     { msgID :: Integer
     , uid :: ID
     , message :: String
     }
     deriving Show
-data MessageResponse = MessageResponse [InMessage]
+data MessageResponse = MessageResponse [Message]
     deriving Show
 
-instance FromJSON InMessage where
+instance FromJSON Message where
     parseJSON (Object v) = do
         mid <- v .: "id"
         userid <- v .: "user_id"
         chatid <- v .:? "chat_id"
         body <- v .: "body"
-        return $ InMessage (mid) (maybe (UserID userid) ChatID chatid) body
+        return $ Message (mid) (maybe (UserID userid) ChatID chatid) body
 
 instance FromJSON MessageResponse where
     parseJSON (Object v) = do
@@ -35,11 +35,20 @@ instance FromJSON MessageResponse where
         items <- resbody .: "items"
         return $ MessageResponse items
 
-getMessages :: MonadVK m => m ([InMessage])
+getMessages :: MonadVK m => m ([Message])
 getMessages = do
     lid <- lastMessageID <$> get
-    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "20")]
+    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "1")]
     liftIO $ print r
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
     when (not $ null msgs) $ modify (\x -> x {lastMessageID = maximum $ map (msgID) msgs})
     return msgs
+
+sendMessage :: MonadVK m => Message -> m ()
+sendMessage msg = do
+    let recv = case uid msg of
+            UserID i -> ("user_id", show i)
+            ChatID i -> ("chat_id", show i)
+        args = [("message", message msg), recv]
+    _ <- dispatch "messages.send" args
+    return ()

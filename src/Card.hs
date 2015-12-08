@@ -1,4 +1,4 @@
-module Card (module X, searchBy, MonadCardsDB) where
+module Card (module X, searchBy, MonadCardsDB, printCards) where
 
 import Card.Parser as X
 import Card.Type as X
@@ -9,6 +9,9 @@ import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 
 type Cards = Map.Map String [Card]
+
+printCards :: Cards -> String
+printCards cs = unlines . map printCard . concatMap snd $ Map.toList cs
 
 type MonadCardsDB = MonadReader Cards
 

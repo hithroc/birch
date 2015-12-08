@@ -46,7 +46,8 @@ main' = do
     updateSets
     locs <- locales <$> ask
     cards <- traverse readCards locs
-    evalStateT init defaultVKData
+    let c = Map.fromList $ zip locs cards
+    evalStateT (runReaderT init c) defaultVKData
     runReaderT loop (Map.fromList $ zip locs cards)
     where
         loop :: (MonadConfig m, MonadCardsDB m, MonadIO m) => m ()
@@ -57,13 +58,20 @@ main' = do
             liftIO . print $ search
             liftIO . putStr . unlines . map printCard . concat . Map.elems $ search
             loop
-        init :: MonadVK m => m ()
+        init :: (MonadVK m, MonadCardsDB m) => m ()
         init = do
             login
             loop'
-        loop' :: MonadVK m => m ()
+        loop' :: (MonadVK m, MonadCardsDB m) => m ()
         loop' = do
             liftIO $ threadDelay 1000000
             msgs <- getMessages
+            traverse answer msgs
             liftIO $ print msgs
             loop'
+        answer :: (MonadVK m, MonadCardsDB m) => Message -> m ()
+        answer msg = do
+            filtered <- traverse (searchBy name . snd) . getCards $ message msg
+            let pure = map (concatMap snd . Map.toList) filtered
+                text = unlines . map printCard . mapMaybe listToMaybe $ pure
+            sendMessage (Message 0 (uid msg) text)
