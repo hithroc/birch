@@ -1,6 +1,6 @@
-name:                vkbot
+name:                hsvkbot
 version:             0.1.0.0
-synopsis:            Hearthstone VK Bot
+synopsis:            Hearthstone card fetcher for VK
 description:         Please see README.md
 author:              Hithroc Mehatoko
 maintainer:          hithroc@gmail.com
@@ -9,7 +9,7 @@ category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable vkbot
+executable hsvkbot
   hs-source-dirs:      src
   other-modules:       Card
                ,       Card.Parser
@@ -17,7 +17,8 @@ executable vkbot
                ,       Card.Json
                ,       Config
                ,       VK
-  ghc-options:         -Wall -O2
+               ,       VK.Messages
+  ghc-options:         -Wall -O2 -fno-warn-unused-do-bind
   main-is:             Main.hs
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
