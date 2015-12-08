@@ -1,6 +1,6 @@
 module VK.Messages where
 
-import VK
+import VK.Base
 import Data.Aeson
 import Control.Monad
 import Control.Monad.Ether.Implicit
@@ -37,8 +37,7 @@ instance FromJSON MessageResponse where
 getMessages :: MonadVK m => m [Message]
 getMessages = do
     lid <- lastMessageID <$> get
-    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "1")]
-    liftIO $ print r
+    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "20")]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
     unless (null msgs) $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs})
     return msgs
