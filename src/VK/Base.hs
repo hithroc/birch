@@ -10,14 +10,17 @@ import qualified Network.Wreq as W
 import qualified Web.VKHS as V
 import System.Log.Logger
 import qualified Data.ByteString.Lazy as BS
+import qualified Control.Exception as E
+import Network.HTTP.Client
+import Control.Concurrent (threadDelay)
 
 type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
 
-data VKData = VKData 
+data VKData = VKData
     { accessToken :: String
     , expireDate :: Maybe UTCTime
     , accessRights :: [V.AccessRight]
-    , dispatcher :: Dispatcher 
+    , dispatcher :: Dispatcher
     , apiVersion :: String
     , lastMessageID :: Integer
     }
@@ -26,11 +29,17 @@ type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver method args = do
-    r <- W.get toUrl
+    r <- W.get toUrl `E.catch` handler
     return $ r ^. W.responseBody
-    where toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
-          params = map (\(x, y) -> x ++ "=" ++ y) withat
-          withat = ("access_token", at):args
+    where
+        toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
+        params = map (\(x, y) -> x ++ "=" ++ y) withat
+        withat = ("access_token", at):args
+        handler :: HttpException -> IO (Response BS.ByteString)
+        handler e = do
+            warningM rootLoggerName $ "Dispatcher exception: " ++ show e ++ "! Trying again"
+            threadDelay 3000000
+            W.get toUrl `E.catch` handler
 
 defaultVKData :: VKData
 defaultVKData = VKData "" Nothing [V.Messages] defaultDispatcher "5.40" 0
