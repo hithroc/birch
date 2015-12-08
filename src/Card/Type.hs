@@ -43,6 +43,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , collectible :: Bool
         , cost :: Int
         , attack :: Int
         , health :: Int
@@ -55,6 +56,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , collectible :: Bool
         , cost :: Int
         , text :: Maybe String
         , flavor :: Maybe String
@@ -64,6 +66,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , collectible :: Bool
         , hpCost :: Maybe Int
         , text :: Maybe String
         }
@@ -72,6 +75,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , collectible :: Bool
         , health :: Int
         , race :: Maybe Race
         , text :: Maybe String
@@ -83,6 +87,7 @@ data Card
         , rarity :: Rarity
         , cost :: Int
         , playerClass :: PlayerClass
+        , collectible :: Bool
         , durability :: Int
         , attack :: Int
         , text :: Maybe String
@@ -93,41 +98,59 @@ data Card
         }
     deriving Show
 
+isMinion :: Card -> Bool
+isMinion (Minion {}) = True
+isMinion _ = False
+
+isSpell :: Card -> Bool
+isSpell (Spell {}) = True
+isSpell _ = False
+
+isHeroPower :: Card -> Bool
+isHeroPower (HeroPower {}) = True
+isHeroPower _ = False
+
+isHero :: Card -> Bool
+isHero (Hero {}) = True
+isHero _ = False
+
+isWeapon :: Card -> Bool
+isWeapon (Weapon {}) = True
+isWeapon _ = False
+
+isEnchantment :: Card -> Bool
+isEnchantment (Enchantment {}) = True
+isEnchantment _ = False
+
 printCard :: Card -> String
 printCard card@(Minion {}) = ""
-    ++ name card ++ " - " ++ show (playerClass card) ++ " " ++ show (rarity card) ++ " Minion"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Minion"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Spell {}) = ""
-    ++ name card ++ " - " ++ show (playerClass card) ++ " " ++ show (rarity card) ++ " Spell"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Spell"
     ++ "\n(" ++ show (cost card) ++ ")"
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(HeroPower {}) = ""
-    ++ name card ++ " - " ++ show (playerClass card) ++ " " ++ show (rarity card) ++ " Hero Power"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Hero Power"
     ++ "\n(" ++ maybe "No cost" show (hpCost card) ++ ")"
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Hero {}) = ""
-    ++ name card ++ " - " ++ show (playerClass card) ++ " " ++ show (rarity card) ++ " Hero"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Hero"
     ++ "\nHP: " ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Weapon {}) = ""
-    ++ name card ++ " - " ++ show (playerClass card) ++ " " ++ show (rarity card) ++ " Weapon"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Weapon"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (durability card)
     ++ maybe "" ("\n"++) (text card)
 
 printCard _ = "Unsupported type of card"
-
-priority :: [a] -> [a -> Bool] -> a
-priority xs [] = head xs
-priority xs (p:ps) = if null f then priority xs ps else priority f ps
-    where
-        f = filter p xs
 
 instance FromJSON Card where
     parseJSON (Object v) = do
@@ -138,8 +161,10 @@ instance FromJSON Card where
         playerClass' <- v .:? "playerClass"
         text' <- v .:? "text"
         flavor' <- v .:? "flavor"
+        collectible' <- v .:? "collectible"
         let playerClass'' = fromMaybe Neutral (playerClass' >>= readMaybe)
             rarity'' = fromMaybe Free (readMaybe rarity')
+            collectible'' = maybe False id collectible'
         case cardType of
             "Minion" -> do
                 cost' <- v .: "cost"
@@ -157,6 +182,7 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , flavor = flavor'
+                    , collectible = collectible''
                     }
             "Spell" -> do
                 cost' <- v .: "cost"
@@ -168,6 +194,7 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , flavor = flavor'
+                    , collectible = collectible''
                     }
             "Hero Power" -> do
                 cost' <- v .:? "cost"
@@ -178,6 +205,7 @@ instance FromJSON Card where
                     , hpCost = cost'
                     , playerClass = playerClass''
                     , text = text'
+                    , collectible = collectible''
                     }
             "Hero" -> do
                 health' <- v .: "health"
@@ -191,6 +219,7 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , flavor = flavor'
+                    , collectible = collectible''
                     }
             "Weapon" -> do
                 durability' <- v .: "durability"
@@ -206,6 +235,7 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , flavor = flavor'
+                    , collectible = collectible''
                     }
             _ -> mzero
     parseJSON _ = mzero

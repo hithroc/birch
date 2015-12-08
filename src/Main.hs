@@ -4,12 +4,13 @@ import Config
 import Card
 import Data.Maybe
 import Data.Foldable
+import qualified Data.Set as S
 import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
 import System.Log.Logger
 import System.Log.Formatter
 import System.Log.Handler (setFormatter)
-import System.Log.Handler.Simple
+import System.Log.Handler.Simple hiding (priority)
 import System.IO
 import qualified Data.Map as Map
 import VK
@@ -56,12 +57,30 @@ main' = do
             loop
         answer :: (MonadVK m, MonadCardsDB m) => Message -> m ()
         answer msg = do
-            filtCards <- traverse (searchBy name . snd)
+            filtCards <- traverse (prepareCard)
                        . getCards
                        $ message msg
             let retmsg = Message 0 (uid msg) $
                       unlines
                     . map printCard
-                    . mapMaybe listToMaybe
-                    $ map (concatMap snd . Map.toList) filtCards
+                    . catMaybes
+                    $ filtCards
             sendMessage retmsg
+
+        prepareCard :: MonadCardsDB m => (S.Set CardTag, String) -> m (Maybe Card)
+        prepareCard (tags, n) = do
+            loccards <- searchBy name n
+            let cards = concatMap snd . Map.toList $ loccards
+            if null cards then
+                return Nothing
+            else do
+                let resultcard = priority cards [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+                Just <$> foldl (\a b -> a >>= dealWithTag b) (return resultcard) tags
+            
+        dealWithTag :: MonadCardsDB m => CardTag -> Card -> m Card
+        dealWithTag (Locale l) c = do
+            cards <- searchBy cardID $ cardID c
+            case Map.lookup l cards >>= listToMaybe of
+                Nothing -> return c
+                Just c' -> return c'
+        dealWithTag _ c = return c

@@ -1,4 +1,4 @@
-module Card (module X, searchBy, MonadCardsDB, printCards) where
+module Card (module X, searchBy, MonadCardsDB, printCards, priority) where
 
 import Card.Parser as X
 import Card.Type as X
@@ -22,4 +22,10 @@ searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
 searchBy f n = do
     cards <- ask
     return . Map.map (searchBy' f n) $ cards
+
+priority :: [a] -> [a -> Bool] -> a
+priority xs [] = head xs
+priority xs (p:ps) = if null f then priority xs ps else priority f ps
+    where
+        f = filter p xs
 
