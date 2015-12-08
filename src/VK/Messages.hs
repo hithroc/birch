@@ -24,7 +24,7 @@ instance FromJSON Message where
         userid <- v .: "user_id"
         chatid <- v .:? "chat_id"
         body <- v .: "body"
-        return $ Message (mid) (maybe (UserID userid) ChatID chatid) body
+        return $ Message mid (maybe (UserID userid) ChatID chatid) body
     parseJSON _ = mzero
 
 instance FromJSON MessageResponse where
@@ -34,13 +34,13 @@ instance FromJSON MessageResponse where
         return $ MessageResponse items
     parseJSON _ = mzero
 
-getMessages :: MonadVK m => m ([Message])
+getMessages :: MonadVK m => m [Message]
 getMessages = do
     lid <- lastMessageID <$> get
     r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "1")]
     liftIO $ print r
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
-    when (not $ null msgs) $ modify (\x -> x {lastMessageID = maximum $ map (msgID) msgs})
+    unless (null msgs) $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs})
     return msgs
 
 sendMessage :: MonadVK m => Message -> m ()

@@ -208,3 +208,4 @@ instance FromJSON Card where
                     , flavor = flavor'
                     }
             _ -> mzero
+    parseJSON _ = mzero

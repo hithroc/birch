@@ -25,6 +25,7 @@ instance FromJSON Config where
                         <*> v .: "jsonURL"
                         <*> v .: "data"
                         <*> v .: "locales"
+    parseJSON _ = mzero
 
 loadConfig :: FilePath -> IO (Maybe Config)
 loadConfig path = decode <$> BS.readFile path

@@ -12,9 +12,9 @@ tag :: Parser (String, String)
 tag = do
     k <- many1 alphaNum
     v <- option "" $ do
-        char ':'
+        _ <- char ':'
         many1 alphaNum
-    char '#'
+    _ <- char '#'
     return (k, v)
 
 card :: Parser ([(String, String)], String)
