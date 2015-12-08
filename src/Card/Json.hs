@@ -11,8 +11,6 @@ import Control.Lens
 import Config
 import Card.Type
 import qualified Data.ByteString.Lazy as BS
-import Control.Exception as E
-import qualified Network.HTTP.Client as H
 import System.Log.Logger
 
 getLatestVersion :: (MonadConfig m, MonadIO m) => m (Maybe String)
@@ -50,8 +48,8 @@ updateSets = do
     ver' <- getVersion
     case zipMaybe last' ver' of
         Nothing -> liftIO $ warningM "main.cards" "Failed to fetch versions"
-        Just (last, ver) -> when (ver /= last) $ do
-                liftIO $ infoM rootLoggerName $ "The local cards version (" ++ ver  ++ ") in different from server's verion (" ++ last ++ ")"
+        Just (l, v) -> when (v /= l) $ do
+                liftIO $ infoM rootLoggerName $ "The local cards version (" ++ v  ++ ") in different from server's verion (" ++ l ++ ")"
                 downloadSets
                 url <- jsonURL <$> ask
                 folder <- dataFol <$> ask

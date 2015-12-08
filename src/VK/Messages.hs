@@ -2,13 +2,10 @@ module VK.Messages where
 
 import VK
 import Data.Aeson
-import Data.Maybe
-import Data.Aeson.Lens
-import Control.Lens
+import Control.Monad
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import System.Log.Logger
-import qualified Data.HashMap.Strict as Map
 
 data ID = UserID Int | ChatID Int
     deriving Show
@@ -28,12 +25,14 @@ instance FromJSON Message where
         chatid <- v .:? "chat_id"
         body <- v .: "body"
         return $ Message (mid) (maybe (UserID userid) ChatID chatid) body
+    parseJSON _ = mzero
 
 instance FromJSON MessageResponse where
     parseJSON (Object v) = do
         resbody <- v .: "response"
         items <- resbody .: "items"
         return $ MessageResponse items
+    parseJSON _ = mzero
 
 getMessages :: MonadVK m => m ([Message])
 getMessages = do

@@ -19,7 +19,7 @@ searchBy' :: (Card -> String) -> String -> [Card] -> [Card]
 searchBy' f n = filter $ \c -> map toUpper n `isInfixOf` map toUpper (f c)
 
 searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
-searchBy f name = do
+searchBy f n = do
     cards <- ask
-    return . Map.map (searchBy' f name) $ cards
+    return . Map.map (searchBy' f n) $ cards
 

@@ -2,15 +2,10 @@ module Main where
 
 import Config
 import Card
-import Data.Aeson
-import Data.Aeson.Lens
 import Data.Maybe
-import Control.Lens
+import Data.Foldable
 import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
-import qualified Data.ByteString.Lazy as BS
-import Data.List
-import Data.Char
 import System.Log.Logger
 import System.Log.Formatter
 import System.Log.Handler (setFormatter)
@@ -47,31 +42,27 @@ main' = do
     locs <- locales <$> ask
     cards <- traverse readCards locs
     let c = Map.fromList $ zip locs cards
-    evalStateT (runReaderT init c) defaultVKData
-    runReaderT loop (Map.fromList $ zip locs cards)
+    evalStateT (runReaderT initVK c) defaultVKData
     where
-        loop :: (MonadConfig m, MonadCardsDB m, MonadIO m) => m ()
-        loop = do
-            liftIO . putStrLn $ "Enter any text:"
-            text <- liftIO getLine
-            search <- searchBy cardID (head . map snd $ getCards text)
-            liftIO . print $ search
-            liftIO . putStr . unlines . map printCard . concat . Map.elems $ search
-            loop
-        init :: (MonadVK m, MonadCardsDB m) => m ()
-        init = do
+        initVK :: (MonadVK m, MonadCardsDB m) => m ()
+        initVK = do
             login
-            loop'
-        loop' :: (MonadVK m, MonadCardsDB m) => m ()
-        loop' = do
+            loop
+        loop :: (MonadVK m, MonadCardsDB m) => m ()
+        loop = do
             liftIO $ threadDelay 1000000
             msgs <- getMessages
-            traverse answer msgs
+            traverse_ answer msgs
             liftIO $ print msgs
-            loop'
+            loop
         answer :: (MonadVK m, MonadCardsDB m) => Message -> m ()
         answer msg = do
-            filtered <- traverse (searchBy name . snd) . getCards $ message msg
-            let pure = map (concatMap snd . Map.toList) filtered
-                text = unlines . map printCard . mapMaybe listToMaybe $ pure
-            sendMessage (Message 0 (uid msg) text)
+            filtCards <- traverse (searchBy name . snd)
+                       . getCards
+                       $ message msg
+            let retmsg = Message 0 (uid msg) $
+                      unlines
+                    . map printCard
+                    . mapMaybe listToMaybe
+                    $ map (concatMap snd . Map.toList) filtCards
+            sendMessage retmsg
