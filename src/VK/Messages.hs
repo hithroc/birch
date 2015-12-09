@@ -54,6 +54,5 @@ sendMessage msg = do
                 [("attachment", concat . intersperse "," . attachment $ msg)]
             else
                 []
-    liftIO $ print withattach
     _ <- dispatch "messages.send" withattach
     return ()

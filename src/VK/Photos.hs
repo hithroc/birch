@@ -40,6 +40,7 @@ instance FromJSON Photo where
                         <*> v .: "id"
     parseJSON _ = mzero
 
+-- TODO: Rewrite this
 uploadPhoto :: MonadVK m => BS.ByteString -> m (String)
 uploadPhoto raw = do
     serv <- dispatch "photos.getMessagesUploadServer" []

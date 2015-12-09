@@ -18,6 +18,7 @@ import qualified Network.Wreq as W
 import Control.Lens
 import VK
 import Control.Concurrent
+import Control.Exception as E
 
 import Data.Acid
 import CardPictureDB
@@ -43,6 +44,8 @@ initLogger = do
     updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
     updateGlobalLogger rootLoggerName $ setLevel DEBUG
 
+prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+
 main' :: (MonadConfig m, MonadIO m) => m ()
 main' = do
     updateSets
@@ -60,53 +63,34 @@ main' = do
         loop = do
             liftIO $ threadDelay 3000000
             msgs <- getMessages
-            traverse_ answer msgs
+            traverse_ processCardsInMessage msgs
             loop
-        answer :: (MonadVK m, MonadCardsDB m) => Message -> m ()
-        answer msg = do
-            filtCards <- traverse (prepareCard)
-                       . getCards
-                       $ message msg
-            let prepcards = catMaybes $ filtCards
-            attachments <- traverse (getAttachment) prepcards
-            let retmsg = Message 0 (uid msg) (unlines . map printCard $ prepcards) attachments
-            sendMessage retmsg
-        getAttachment :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
-        getAttachment c = do
-            url <- imageURL <$> ask
-            let (Locale loc) = locale c
-            let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
-            acid <- liftIO $ openLocalState (CardPics Map.empty)
-            mbPic <- liftIO $ query acid (GetPic imgurl)
-            pid <- case mbPic of
-                Nothing -> do
-                    r <- liftIO . W.get $ imgurl
-                    pid <- uploadPhoto (r ^. W.responseBody)
-                    liftIO $ update acid (InsertPic imgurl pid)
-                    return pid
-                Just pid -> do
-                    liftIO $ print $ "Yay: " ++ pid
-                    return pid
-            liftIO $ closeAcidState acid
+
+processCardsInMessage :: (MonadVK m, MonadCardsDB m) => Message -> m ()
+processCardsInMessage msg = do
+    filtCards <- traverse (processCard prio)
+               . parseCards
+               $ message msg
+    attachments <- traverse (getCardImage) filtCards
+    let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
+    sendMessage retmsg
+
+
+
+getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
+getCardImage c = do
+    url <- imageURL <$> ask
+    let (Locale loc) = locale c
+    let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
+    acid <- liftIO $ openLocalState (CardPics Map.empty)
+    mbPic <- liftIO $ query acid (GetPic imgurl)
+    pid <- case if isNotFound c then Just "" else mbPic of
+        Nothing -> do
+            r <- liftIO . W.get $ imgurl
+            pid <- uploadPhoto (r ^. W.responseBody)
+            liftIO $ update acid (InsertPic imgurl pid)
             return pid
-
-        prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
-
-        prepareCard :: (MonadCardsDB m, MonadIO m) => (S.Set CardTag, String) -> m (Maybe Card)
-        prepareCard (tags, n) = do
-            loccards <- searchBy name n
-            let cards = concatMap snd . Map.toList $ loccards
-            if null cards then do
-                liftIO . infoM rootLoggerName $ "No card named \"" ++ n ++ "\" found!"
-                return Nothing
-            else do
-                let resultcard = priority cards prio
-                Just <$> foldl (\a b -> a >>= dealWithTag b) (return resultcard) tags
-            
-        dealWithTag :: MonadCardsDB m => CardTag -> Card -> m Card
-        dealWithTag (Loc (Locale l)) c = do
-            cards <- exactSearchBy cardID $ cardID c
-            case Map.lookup l cards >>= listToMaybe of
-                Nothing -> return c
-                Just c' -> return c'
-        dealWithTag _ c = return c
+        Just pid -> do
+            return pid
+    liftIO $ closeAcidState acid
+    return pid

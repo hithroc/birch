@@ -29,8 +29,8 @@ card = do
     char ']'
     return (tags, name)
 
-getCards :: String -> [(S.Set CardTag, String)]
-getCards str = case parse (many $ try one) "" str of
+parseCards :: String -> [(S.Set CardTag, String)]
+parseCards str = case parse (many $ try one) "" str of
     Left e -> []
     Right xs -> map (\(ts, n) -> (S.fromList $ mapMaybe cardTag ts, n)) xs
     where

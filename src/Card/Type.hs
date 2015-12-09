@@ -106,7 +106,18 @@ data Card
     | Enchantment
         { cardID :: String
         }
+    | NotFound
+        { cardID :: String
+        , name :: String
+        , playerClass :: PlayerClass
+        , collectible :: Bool
+        , locale :: Locale
+        , rarity :: Rarity
+        }
     deriving Show
+
+notFoundCard :: Card
+notFoundCard = NotFound "" "" Neutral False (Locale "enUS") Debug
 
 isMinion :: Card -> Bool
 isMinion (Minion {}) = True
@@ -132,33 +143,39 @@ isEnchantment :: Card -> Bool
 isEnchantment (Enchantment {}) = True
 isEnchantment _ = False
 
+isNotFound :: Card -> Bool
+isNotFound (NotFound {}) = True
+isNotFound _ = False
+
 printCard :: Card -> String
 printCard card@(Minion {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Minion"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Minion"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Spell {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Spell"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Spell"
     ++ "\n(" ++ show (cost card) ++ ")"
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(HeroPower {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Hero Power"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero Power"
     ++ "\n(" ++ maybe "No cost" show (hpCost card) ++ ")"
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Hero {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Hero"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero"
     ++ "\nHP: " ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
     ++ maybe "" ("\n"++) (text card)
 
 printCard card@(Weapon {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " " ++ " Weapon"
+    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card)  ++ " Weapon"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (durability card)
     ++ maybe "" ("\n"++) (text card)
+
+printCard card@(NotFound {}) = "No card named \"" ++ name card ++ "\" found"
 
 printCard _ = "Unsupported type of card"
 
