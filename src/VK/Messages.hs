@@ -2,6 +2,7 @@ module VK.Messages where
 
 import VK.Base
 import Data.Aeson
+import Data.List
 import Control.Monad
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
@@ -13,6 +14,7 @@ data Message = Message
     { msgID :: Integer
     , uid :: ID
     , message :: String
+    , attachment :: [String]
     }
     deriving Show
 data MessageResponse = MessageResponse [Message]
@@ -24,7 +26,7 @@ instance FromJSON Message where
         userid <- v .: "user_id"
         chatid <- v .:? "chat_id"
         body <- v .: "body"
-        return $ Message mid (maybe (UserID userid) ChatID chatid) body
+        return $ Message mid (maybe (UserID userid) ChatID chatid) body []
     parseJSON _ = mzero
 
 instance FromJSON MessageResponse where
@@ -37,7 +39,7 @@ instance FromJSON MessageResponse where
 getMessages :: MonadVK m => m [Message]
 getMessages = do
     lid <- lastMessageID <$> get
-    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "20")]
+    r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "1")]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
     unless (null msgs) $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs})
     return msgs
@@ -47,6 +49,12 @@ sendMessage msg = do
     let recv = case uid msg of
             UserID i -> ("user_id", show i)
             ChatID i -> ("chat_id", show i)
-        args = [("message", message msg), recv]
-    _ <- dispatch "messages.send" args
+        args = [("message", message msg)
+               , recv]
+        withattach = args ++ if not $ null (attachment msg) then
+                [("attachment", concat . intersperse "," . attachment $ msg)]
+            else
+                []
+    liftIO $ print withattach
+    _ <- dispatch "messages.send" withattach
     return ()

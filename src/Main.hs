@@ -13,8 +13,11 @@ import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple hiding (priority)
 import System.IO
 import qualified Data.Map as Map
+import qualified Network.Wreq as W
+import Control.Lens
 import VK
 import VK.Messages
+import VK.Photos
 import Control.Concurrent
 
 import Debug.Trace
@@ -53,7 +56,7 @@ main' = do
             loop
         loop :: (MonadVK m, MonadCardsDB m) => m ()
         loop = do
-            liftIO $ threadDelay 1000000
+            liftIO $ threadDelay 3000000
             msgs <- getMessages
             traverse_ answer msgs
             loop
@@ -62,20 +65,24 @@ main' = do
             filtCards <- traverse (prepareCard)
                        . getCards
                        $ message msg
-            let retmsg = Message 0 (uid msg) $
-                      unlines
-                    . map printCard
-                    . catMaybes
-                    $ filtCards
+            let prepcards = catMaybes $ filtCards
+            attachments <- traverse (getAttachment) prepcards
+            let retmsg = Message 0 (uid msg) (unlines . map printCard $ prepcards) attachments
             sendMessage retmsg
+        getAttachment :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
+        getAttachment c = do
+            url <- imageURL <$> ask
+            r <- liftIO . W.get $ url ++ "/enus/original/" ++ cardID c ++ ".png"
+            uploadPhoto (r ^. W.responseBody)
 
         prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
-        prepareCard :: MonadCardsDB m => (S.Set CardTag, String) -> m (Maybe Card)
+        prepareCard :: (MonadCardsDB m, MonadIO m) => (S.Set CardTag, String) -> m (Maybe Card)
         prepareCard (tags, n) = do
             loccards <- searchBy name n
             let cards = concatMap snd . Map.toList $ loccards
-            if null cards then
+            if null cards then do
+                liftIO . infoM rootLoggerName $ "No card named \"" ++ n ++ "\" found!"
                 return Nothing
             else do
                 let resultcard = priority cards prio

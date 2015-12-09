@@ -38,11 +38,10 @@ defaultDispatcher at ver method args = do
         handler :: HttpException -> IO (Response BS.ByteString)
         handler e = do
             warningM rootLoggerName $ "Dispatcher exception: " ++ show e ++ "! Trying again"
-            threadDelay 3000000
             W.get toUrl `E.catch` handler
 
 defaultVKData :: VKData
-defaultVKData = VKData "" Nothing [V.Messages] defaultDispatcher "5.40" 0
+defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch method args = do

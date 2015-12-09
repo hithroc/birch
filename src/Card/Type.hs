@@ -9,6 +9,7 @@ import Control.Monad
 
 data Rarity
     = Free
+    | Debug
     | Common
     | Rare
     | Epic
@@ -157,13 +158,13 @@ instance FromJSON Card where
         cid      <- v .: "id"
         (cardType :: String) <- v .: "type"
         name'    <- v .: "name"
-        rarity'  <- v .: "rarity"
+        rarity'  <- v .:? "rarity"
         playerClass' <- v .:? "playerClass"
         text' <- v .:? "text"
         flavor' <- v .:? "flavor"
         collectible' <- v .:? "collectible"
         let playerClass'' = fromMaybe Neutral (playerClass' >>= readMaybe)
-            rarity'' = fromMaybe Free (readMaybe rarity')
+            rarity'' = fromMaybe Free (maybe (Just Debug) readMaybe rarity')
             collectible'' = maybe False id collectible'
         case cardType of
             "Minion" -> do
