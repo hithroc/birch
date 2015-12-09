@@ -2,6 +2,7 @@ module Main where
 
 import Config
 import Card
+import Data.Char
 import Data.Maybe
 import Data.Foldable
 import qualified Data.Set as S
@@ -20,7 +21,10 @@ import VK.Messages
 import VK.Photos
 import Control.Concurrent
 
+import Data.Acid
+import CardPictureDB
 import Debug.Trace
+
 
 main :: IO ()
 main = do
@@ -45,7 +49,7 @@ main' :: (MonadConfig m, MonadIO m) => m ()
 main' = do
     updateSets
     locs <- locales <$> ask
-    cards <- traverse readCards locs
+    cards <- traverse (readCards . Locale) locs
     let c = Map.fromList $ zip locs cards
     evalStateT (runReaderT initVK c) defaultVKData
     where
@@ -72,8 +76,21 @@ main' = do
         getAttachment :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
         getAttachment c = do
             url <- imageURL <$> ask
-            r <- liftIO . W.get $ url ++ "/enus/original/" ++ cardID c ++ ".png"
-            uploadPhoto (r ^. W.responseBody)
+            let (Locale loc) = locale c
+            let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
+            acid <- liftIO $ openLocalState (CardPics Map.empty)
+            mbPic <- liftIO $ query acid (GetPic imgurl)
+            pid <- case mbPic of
+                Nothing -> do
+                    r <- liftIO . W.get $ imgurl
+                    pid <- uploadPhoto (r ^. W.responseBody)
+                    liftIO $ update acid (InsertPic imgurl pid)
+                    return pid
+                Just pid -> do
+                    liftIO $ print $ "Yay: " ++ pid
+                    return pid
+            liftIO $ closeAcidState acid
+            return pid
 
         prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
@@ -89,7 +106,7 @@ main' = do
                 Just <$> foldl (\a b -> a >>= dealWithTag b) (return resultcard) tags
             
         dealWithTag :: MonadCardsDB m => CardTag -> Card -> m Card
-        dealWithTag (Locale l) c = do
+        dealWithTag (Loc (Locale l)) c = do
             cards <- exactSearchBy cardID $ cardID c
             case Map.lookup l cards >>= listToMaybe of
                 Nothing -> return c

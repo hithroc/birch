@@ -1,12 +1,12 @@
 module Card.Parser where
 
 import Text.ParserCombinators.Parsec
+import Card.Type
 import Data.Maybe
+import Text.Read
 import qualified Data.Set as S
 
-import Debug.Trace
-
-data CardTag = Locale String
+data CardTag = Loc Locale
     deriving (Show, Eq, Ord)
 
 tag :: Parser (String, String)
@@ -32,13 +32,13 @@ card = do
 
 getCards :: String -> [(S.Set CardTag, String)]
 getCards str = case parse (many $ try one) "" str of
-    Left e -> traceShow e []
+    Left e -> []
     Right xs -> map (\(ts, n) -> (S.fromList $ mapMaybe cardTag ts, n)) xs
     where
         one = card <|> (anyChar >> one)
 
 cardTag :: (String, String) -> Maybe CardTag
-cardTag ("ru", _) = Just $ Locale "ruRU"
-cardTag ("en", _) = Just $ Locale "enUS"
-cardTag ("locale", l) = Just $ Locale l
+cardTag ("ru", _) = Just $ Loc (Locale "ruRU")
+cardTag ("en", _) = Just $ Loc (Locale "enUS")
+cardTag ("locale", l) = Just $ Loc (Locale l)
 cardTag _ = Nothing

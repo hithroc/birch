@@ -43,16 +43,12 @@ uploadPhoto raw = do
         Nothing -> return ""
         Just (PhotoServ servstr) -> do
             r <- liftIO $ W.post servstr [W.partLBS "photo" raw & W.partFileName .~ Just "img.png"]
-            liftIO $ print $ r ^. W.responseBody
             case decode (r ^. W.responseBody) of
                 Nothing -> return ""
                 Just (UploadResponse s p h) -> do
-                    liftIO $ print (show s ++ " " ++ p ++ " " ++ h)
                     info <- dispatch "photos.saveMessagesPhoto" [("server", show s), ("photo", BSS.unpack . urlEncode False . BSS.pack $ p), ("hash", h)]
-                    liftIO $ print $ info
                     let resp = decode info :: Maybe PhotoResponse
                         photos :: Maybe [Photo]
                         photos = resp >>= (\(PhotoResponse x) -> decode . encode $ x)
                         toAttachment = \(Photo o i) -> "photo" ++ show o ++ "_" ++ show i
-                    liftIO . print . encode . (\(PhotoResponse x) -> x) $ fromJust resp
                     return $ maybe "" (toAttachment . head) $ photos

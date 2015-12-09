@@ -7,6 +7,10 @@ import Data.Maybe
 import Text.Read
 import Control.Monad
 
+data Locale = Locale String
+            | Unknown
+    deriving (Read, Show, Eq, Ord)
+
 data Rarity
     = Free
     | Debug
@@ -45,6 +49,7 @@ data Card
         , rarity :: Rarity
         , playerClass :: PlayerClass
         , collectible :: Bool
+        , locale :: Locale
         , cost :: Int
         , attack :: Int
         , health :: Int
@@ -58,6 +63,7 @@ data Card
         , rarity :: Rarity
         , playerClass :: PlayerClass
         , collectible :: Bool
+        , locale :: Locale
         , cost :: Int
         , text :: Maybe String
         , flavor :: Maybe String
@@ -67,6 +73,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , locale :: Locale
         , collectible :: Bool
         , hpCost :: Maybe Int
         , text :: Maybe String
@@ -76,6 +83,7 @@ data Card
         , name :: String
         , rarity :: Rarity
         , playerClass :: PlayerClass
+        , locale :: Locale
         , collectible :: Bool
         , health :: Int
         , race :: Maybe Race
@@ -85,10 +93,11 @@ data Card
     | Weapon
         { cardID :: String
         , name :: String
-        , rarity :: Rarity
-        , cost :: Int
         , playerClass :: PlayerClass
         , collectible :: Bool
+        , locale :: Locale
+        , rarity :: Rarity
+        , cost :: Int
         , durability :: Int
         , attack :: Int
         , text :: Maybe String
@@ -184,6 +193,7 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
+                    , locale = Unknown
                     }
             "Spell" -> do
                 cost' <- v .: "cost"
@@ -196,6 +206,7 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
+                    , locale = Unknown
                     }
             "Hero Power" -> do
                 cost' <- v .:? "cost"
@@ -207,6 +218,7 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , collectible = collectible''
+                    , locale = Unknown
                     }
             "Hero" -> do
                 health' <- v .: "health"
@@ -221,6 +233,7 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
+                    , locale = Unknown
                     }
             "Weapon" -> do
                 durability' <- v .: "durability"
@@ -237,6 +250,7 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
+                    , locale = Unknown
                     }
             _ -> mzero
     parseJSON _ = mzero

@@ -60,9 +60,9 @@ updateSets = do
         zipMaybe _ Nothing = Nothing
         zipMaybe (Just a) (Just b) = Just (a,b)
 
-readCards :: (MonadConfig m, MonadIO m) => String -> m [Card]
-readCards locale = do
+readCards :: (MonadConfig m, MonadIO m) => Locale -> m [Card]
+readCards (Locale loc) = do
     folder <- dataFol <$> ask
-    o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ locale ++ ".json")
+    o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ loc ++ ".json")
     let c = fmap (mapMaybe (decode . encode)) (o ^. traverseObject :: Maybe [Value])
-    return $ fromMaybe [] c
+    return $ map (\x -> x { locale = Locale loc }) $ fromMaybe [] c
