@@ -17,8 +17,6 @@ import qualified Data.Map as Map
 import qualified Network.Wreq as W
 import Control.Lens
 import VK
-import VK.Messages
-import VK.Photos
 import Control.Concurrent
 
 import Data.Acid

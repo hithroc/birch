@@ -3,7 +3,6 @@ module CardPictureDB where
 
 import Data.Acid
 import Data.Typeable
-import Control.Monad
 import Control.Monad.State
 import Control.Monad.Reader
 import Data.SafeCopy

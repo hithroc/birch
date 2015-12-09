@@ -66,3 +66,4 @@ readCards (Locale loc) = do
     o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ loc ++ ".json")
     let c = fmap (mapMaybe (decode . encode)) (o ^. traverseObject :: Maybe [Value])
     return $ map (\x -> x { locale = Locale loc }) $ fromMaybe [] c
+readCards Unknown = readCards $ Locale "enUS"

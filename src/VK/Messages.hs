@@ -6,7 +6,6 @@ import Data.List
 import Control.Monad
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
-import System.Log.Logger
 
 data ID = UserID Int | ChatID Int
     deriving Show

@@ -12,7 +12,6 @@ import System.Log.Logger
 import qualified Data.ByteString.Lazy as BS
 import qualified Control.Exception as E
 import Network.HTTP.Client
-import Control.Concurrent (threadDelay)
 
 type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
 
@@ -28,11 +27,11 @@ data VKData = VKData
 type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 defaultDispatcher :: Dispatcher
-defaultDispatcher at ver method args = do
+defaultDispatcher at ver meth args = do
     r <- W.get toUrl `E.catch` handler
     return $ r ^. W.responseBody
     where
-        toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ method ++ "?v=" ++ ver) params
+        toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ meth ++ "?v=" ++ ver) params
         params = map (\(x, y) -> x ++ "=" ++ y) withat
         withat = ("access_token", at):args
         handler :: HttpException -> IO (Response BS.ByteString)
@@ -44,7 +43,7 @@ defaultVKData :: VKData
 defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
-dispatch method args = do
+dispatch meth args = do
     expdate <- expireDate <$> get
     curtime <- liftIO $ getCurrentTime
     case expdate of
@@ -55,7 +54,7 @@ dispatch method args = do
     d <- dispatcher <$> get
     at <- accessToken <$> get
     ver <- apiVersion <$> get
-    liftIO $ d at ver method args
+    liftIO $ d at ver meth args
 
 login :: MonadVK m => m ()
 login = do

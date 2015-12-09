@@ -1,9 +1,8 @@
 module Card.Parser where
 
 import Text.ParserCombinators.Parsec
-import Card.Type
+import Card.Type (Locale(..))
 import Data.Maybe
-import Text.Read
 import qualified Data.Set as S
 
 data CardTag = Loc Locale

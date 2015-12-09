@@ -2,9 +2,9 @@ module VK.Photos where
 
 import VK.Base
 import Control.Lens
+import Control.Monad
 import Control.Monad.Trans
 import Data.Aeson
-import Data.Maybe
 import qualified Network.Wreq as W
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Char8 as BSS
@@ -22,19 +22,23 @@ instance FromJSON PhotoServ where
         resbody <- v .: "response"
         url <- resbody .: "upload_url"
         return $ PhotoServ url
+    parseJSON _ = mzero
 instance FromJSON UploadResponse where
     parseJSON (Object v) = UploadResponse 
                         <$> v .: "server"
                         <*> v .: "photo"
                         <*> v .: "hash"
+    parseJSON _ = mzero
 instance FromJSON PhotoResponse where
     parseJSON (Object v) = do
         resbody <- v .: "response"
         return $ PhotoResponse resbody
+    parseJSON _ = mzero
 instance FromJSON Photo where
     parseJSON (Object v) = Photo
                         <$> v .: "owner_id"
                         <*> v .: "id"
+    parseJSON _ = mzero
 
 uploadPhoto :: MonadVK m => BS.ByteString -> m (String)
 uploadPhoto raw = do
