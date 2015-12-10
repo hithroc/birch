@@ -4,6 +4,7 @@ import Config
 import Control.Lens ((^.))
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
+import Data.Aeson
 import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Network.Wreq as W
@@ -14,6 +15,14 @@ import qualified Control.Exception as E
 import Network.HTTP.Client
 
 type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
+data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
+
+instance FromJSON LongPollServer where
+    parseJSON (Object v) = LongPollServer
+                        <$> v .: "key"
+                        <*> v .: "server"
+                        <*> v .: "ts"
+    parseJSON _ = mzero
 
 data VKData = VKData
     { accessToken :: String
@@ -22,7 +31,9 @@ data VKData = VKData
     , dispatcher :: Dispatcher
     , apiVersion :: String
     , lastMessageID :: Integer
+    , longPollServer :: Maybe LongPollServer
     }
+
 
 type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
@@ -40,7 +51,7 @@ defaultDispatcher at ver meth args = do
             W.get toUrl `E.catch` handler
 
 defaultVKData :: VKData
-defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0
+defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0 Nothing
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do

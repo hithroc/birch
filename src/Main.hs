@@ -24,7 +24,6 @@ import Data.Acid
 import CardPictureDB
 import Debug.Trace
 
-
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
@@ -62,7 +61,7 @@ main' = do
         loop :: (MonadVK m, MonadCardsDB m) => m ()
         loop = do
             liftIO $ threadDelay 3000000
-            msgs <- getMessages
+            msgs <- getLongPoll
             traverse_ processCardsInMessage msgs
             loop
 
