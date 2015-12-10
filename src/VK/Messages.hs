@@ -84,7 +84,7 @@ sendMessage msg = do
 
 intToID :: Integer -> ID
 intToID i
-    | i > 2000000000 = ChatID $ 2000000007 - i
+    | i > 2000000000 = ChatID $ i - 2000000000
     | otherwise = UserID i
 
 longToMsg :: [LongPollValue] -> Maybe Message
