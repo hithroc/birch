@@ -18,10 +18,11 @@ type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.Byte
 data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
 
 instance FromJSON LongPollServer where
-    parseJSON (Object v) = LongPollServer
-                        <$> v .: "key"
-                        <*> v .: "server"
-                        <*> v .: "ts"
+    parseJSON (Object v) = do
+        resp <- v .: "response"
+        LongPollServer <$> resp .: "key"
+                       <*> resp .: "server"
+                       <*> resp .: "ts"
     parseJSON _ = mzero
 
 data VKData = VKData

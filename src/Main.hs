@@ -62,6 +62,7 @@ main' = do
         loop = do
             liftIO $ threadDelay 3000000
             msgs <- getLongPoll
+            liftIO $ print msgs
             traverse_ processCardsInMessage msgs
             loop
 

@@ -24,7 +24,6 @@ data Message = Message
 data MessageResponse = MessageResponse [Message]
     deriving Show
 
-
 data LongPollValue 
     = IntData  { intdata :: Integer }
     | TextData { textdata :: String }
@@ -100,9 +99,9 @@ getLongPoll = do
     lps <- longPollServer <$> get
     case lps of
         Nothing -> do
-            r <- decode <$> dispatch "messages.getLongPollServer" []
-            liftIO $ print $ (lpsurl <$> r)
-            modify (\x -> x {longPollServer = r})
+            r <- dispatch "messages.getLongPollServer" []
+            liftIO $ print $ r
+            modify (\x -> x {longPollServer = decode r})
             getLongPoll
         Just s -> do
             let url = "http://" ++ lpsurl s ++ "?act=a_check&key=" ++ lpskey s ++ "&ts=" ++ show (lpsts s) ++ "&wait=25&mode=2"
