@@ -9,8 +9,11 @@ import Control.Monad
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import System.Log.Logger
+import Network.HTTP.Client (HttpException(..))
 import qualified Network.Wreq as W
 import qualified Data.Text as T
+import qualified Control.Exception as E
+import qualified Data.ByteString.Lazy as BS
 
 data ID = UserID Integer | ChatID Integer
     deriving Show
@@ -105,7 +108,9 @@ getLongPoll = do
             getLongPoll
         Just s -> do
             let url = "http://" ++ lpsurl s ++ "?act=a_check&key=" ++ lpskey s ++ "&ts=" ++ show (lpsts s) ++ "&wait=25&mode=2"
-            r <- liftIO $ W.get url
+            let autocatch :: IO (W.Response BS.ByteString)
+                autocatch = W.get url `E.catch` \ResponseTimeout -> autocatch
+            r <- liftIO $ autocatch
             case decode (r ^. W.responseBody) of
                 Nothing -> do
                     liftIO $ infoM rootLoggerName "LongPoll server key expired (most likely). Retrying"
