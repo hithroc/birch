@@ -13,7 +13,7 @@ data Locale = Locale String
 
 data Rarity
     = Free
-    | Debug
+    | Token
     | Common
     | Rare
     | Epic
@@ -117,7 +117,7 @@ data Card
     deriving Show
 
 notFoundCard :: Card
-notFoundCard = NotFound "" "" Neutral False (Locale "enUS") Debug
+notFoundCard = NotFound "" "" Neutral False (Locale "enUS") Token
 
 isMinion :: Card -> Bool
 isMinion (Minion {}) = True
@@ -190,7 +190,7 @@ instance FromJSON Card where
         flavor' <- v .:? "flavor"
         collectible' <- v .:? "collectible"
         let playerClass'' = fromMaybe Neutral (playerClass' >>= readMaybe)
-            rarity'' = fromMaybe Free (maybe (Just Debug) readMaybe rarity')
+            rarity'' = fromMaybe Free (maybe (Just Token) readMaybe rarity')
             collectible'' = maybe False id collectible'
         case cardType of
             "Minion" -> do
