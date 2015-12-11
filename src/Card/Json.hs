@@ -65,5 +65,5 @@ readCards (Locale loc) = do
     folder <- dataFol <$> ask
     o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ loc ++ ".json")
     let c = fmap (mapMaybe (decode . encode)) (o ^. traverseObject :: Maybe [Value])
-    return $ map (\x -> x { locale = Locale loc }) $ fromMaybe [] c
+    return $ map (\x -> x { locale = Locale loc, text = filter (\c -> c /= '#' && c /= '$') <$> text x}) $ fromMaybe [] c
 readCards Unknown = readCards $ Locale "enUS"
