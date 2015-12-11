@@ -103,7 +103,7 @@ getLongPoll = do
     case lps of
         Nothing -> do
             r <- dispatch "messages.getLongPollServer" []
-            liftIO $ print $ r
+            liftIO $ infoM rootLoggerName "Connected to a Long Poll server"
             modify (\x -> x {longPollServer = decode r})
             getLongPoll
         Just s -> do

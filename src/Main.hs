@@ -62,20 +62,19 @@ main' = do
         loop = do
             liftIO $ threadDelay 3000000
             msgs <- getLongPoll
-            liftIO $ print msgs
             traverse_ processCardsInMessage msgs
             loop
 
 processCardsInMessage :: (MonadVK m, MonadCardsDB m) => Message -> m ()
 processCardsInMessage msg = do
-    filtCards <- traverse (processCard prio)
-               . parseCards
-               $ message msg
+    a <- aliases <$> ask
+    let parsedCards = parseCards . message $ msg
+        aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
+    filtCards <- traverse (processCard prio) aliasedCards
     attachments <- traverse (getCardImage) filtCards
     let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
     sendMessage retmsg
-
-
+    where
 
 getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
 getCardImage c = do
