@@ -70,9 +70,9 @@ dispatch meth args = do
 
 login :: MonadVK m => m ()
 login = do
-    vklog  <- vkLogin <$> ask
-    vkpass <- vkPass <$> ask
-    aid    <- appID <$> ask
+    vklog  <- vkLogin <$> get
+    vkpass <- vkPass <$> get
+    aid    <- appID <$> get
     rs <- accessRights <$> get
     let e = V.env aid vklog vkpass rs
     at' <- liftIO $ V.login e

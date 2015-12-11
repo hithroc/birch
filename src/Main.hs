@@ -28,11 +28,27 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     initLogger
-    cfg <- loadConfig "config.json"
+    main' `E.catch` mainHandler 20
+    where
+        main' = do
+            cfg <- loadConfig "config.json"
+            undefined
+        mainHandler 0 e = do
+            emergencyM rootLoggerName $ "It's dead, Jim"
+            error "The program is completely crashed"
+        mainHandler i e = do
+            criticalM rootLoggerName $ "The program crashed with an exception: "
+                                     ++ E.displayException (e :: SomeException)
+                                     ++ "! Fix this!"
+            infoM rootLoggerName $ "Recovering from crash"
+            main' `E.catch` mainHandler (i-1)
+{-
+main :: IO ()
+main = do
     case cfg of
         Nothing -> criticalM rootLoggerName "Failed to load config.json!"
         Just conf -> runReaderT main' conf
-
+-}
 initLogger :: IO ()
 initLogger = do
     let form = simpleLogFormatter "$time [$prio]\t$msg"
@@ -42,7 +58,7 @@ initLogger = do
         shand' = setFormatter shand form
     updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
     updateGlobalLogger rootLoggerName $ setLevel DEBUG
-
+{-
 prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
 main' :: (MonadConfig m, MonadIO m) => m ()
@@ -93,3 +109,4 @@ getCardImage c = do
             return pid
     liftIO $ closeAcidState acid
     return pid
+-}

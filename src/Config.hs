@@ -19,8 +19,6 @@ data Config = Config
     , aliases :: Aliases
     }
 
-type MonadConfig = MonadReader Config
-
 instance FromJSON Config where
     parseJSON (Object v) = Config 
                         <$> v .: "login" 
@@ -32,6 +30,8 @@ instance FromJSON Config where
                         <*> v .: "locales"
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
     parseJSON _ = mzero
+
+type MonadConfig = MonadState Config
 
 loadConfig :: FilePath -> IO (Maybe Config)
 loadConfig path = decode <$> BS.readFile path

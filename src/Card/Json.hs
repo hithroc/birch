@@ -15,27 +15,27 @@ import System.Log.Logger
 
 getLatestVersion :: (MonadConfig m, MonadIO m) => m (Maybe String)
 getLatestVersion = do
-    url <- jsonURL <$> ask
+    url <- jsonURL <$> get
     r <- liftIO . W.get $ url ++ "version.json"
     let o = decode $ r ^. W.responseBody :: Maybe Value
     return (o ^. key "version")
 
 getVersion :: (MonadConfig m, MonadIO m) => m (Maybe String)
 getVersion = do
-    folder <- dataFol <$> ask
+    folder <- dataFol <$> get
     o <- liftIO $ decode <$> BS.readFile (folder ++ "version.json")
     return (o ^. key "version")
 
 downloadSets :: (MonadConfig m, MonadIO m) => m ()
 downloadSets = do
-    locs <- locales <$> ask
+    locs <- locales <$> get
     liftIO $ infoM rootLoggerName ("Downloading card info for " ++ show locs)
     traverse_ downloadSet locs
 
 downloadSet :: (MonadConfig m, MonadIO m) => String -> m ()
 downloadSet loc = do
-    url <- jsonURL <$> ask
-    folder <- dataFol <$> ask
+    url <- jsonURL <$> get
+    folder <- dataFol <$> get
     r <- liftIO . W.get $ url ++ filename
     liftIO $ BS.writeFile (folder ++ filename) (r ^. W.responseBody)
     liftIO $ infoM rootLoggerName ("Downloaded " ++ filename)
@@ -51,8 +51,8 @@ updateSets = do
         Just (l, v) -> when (v /= l) $ do
                 liftIO $ infoM rootLoggerName $ "The local cards version (" ++ v  ++ ") in different from server's verion (" ++ l ++ ")"
                 downloadSets
-                url <- jsonURL <$> ask
-                folder <- dataFol <$> ask
+                url <- jsonURL <$> get
+                folder <- dataFol <$> get
                 r <- liftIO . W.get $ url ++ "version.json"
                 liftIO $ BS.writeFile (folder ++ "version.json") (r ^. W.responseBody)
     where
@@ -62,7 +62,7 @@ updateSets = do
 
 readCards :: (MonadConfig m, MonadIO m) => Locale -> m [Card]
 readCards (Locale loc) = do
-    folder <- dataFol <$> ask
+    folder <- dataFol <$> get
     o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ loc ++ ".json")
     let c = fmap (mapMaybe (decode . encode)) (o ^. traverseObject :: Maybe [Value])
     return $ map (\x -> x { locale = Locale loc }) $ fromMaybe [] c
