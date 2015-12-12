@@ -24,6 +24,7 @@ import System.Exit
 import Data.List
 import Data.Acid
 import CardPictureDB
+import Version
 
 data Command
     = Version
@@ -83,6 +84,16 @@ main = do
         interruptHandler UserInterrupt = return ()
         interruptHandler _ = relaunch
 
+initLogger :: IO ()
+initLogger = do
+    let form = simpleLogFormatter "$time [$prio]\t$msg"
+    fhand <- fileHandler "./vkbot.log" DEBUG
+    shand <- streamHandler stderr WARNING
+    let fhand' = setFormatter fhand form
+        shand' = setFormatter shand form
+    updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
+    updateGlobalLogger rootLoggerName $ setLevel DEBUG
+
 loop :: (MonadVK m, MonadCardsDB m) => m ()
 loop = do
     (VKUser _ uname _) <- logUser <$> get
@@ -105,7 +116,9 @@ prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
 executeMessage :: (MonadVK m, MonadCardsDB m) => (ProcessedMessage, Message) -> m ()
 executeMessage ((CommandRequest cmd), msg) = do
-    sendMessage (Message 0 (uid msg) (show cmd) [])
+    case cmd of
+        Version -> sendMessage (Message 0 (uid msg) ("Current version: " ++ version) [])
+        _ -> return ()
 
 executeMessage ((CardRequest req), msg) = do
     a <- aliases <$> get
@@ -116,48 +129,6 @@ executeMessage ((CardRequest req), msg) = do
     let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
     sendMessage retmsg
 
-{-
-main :: IO ()
-main = do
-    case cfg of
-        Nothing -> criticalM rootLoggerName "Failed to load config.json!"
-        Just conf -> runReaderT main' conf
--}
-initLogger :: IO ()
-initLogger = do
-    let form = simpleLogFormatter "$time [$prio]\t$msg"
-    fhand <- fileHandler "./vkbot.log" DEBUG
-    shand <- streamHandler stderr WARNING
-    let fhand' = setFormatter fhand form
-        shand' = setFormatter shand form
-    updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
-    updateGlobalLogger rootLoggerName $ setLevel DEBUG
-{-
-
-main' :: (MonadConfig m, MonadIO m) => m ()
-main' = do
-    updateSets
-    locs <- locales <$> ask
-    cards <- traverse (readCards . Locale) locs
-    let c = Map.fromList $ zip locs cards
-    evalStateT (runReaderT initVK c) defaultVKData
-    where
-        initVK :: (MonadVK m, MonadCardsDB m) => m ()
-        initVK = do
-            login
-            liftIO . infoM rootLoggerName $ "Executing main loop"
-            loop
-        loop :: (MonadVK m, MonadCardsDB m) => m ()
-        loop = do
-            liftIO $ threadDelay 3000000
-            traverse_ processCardsInMessage msgs
-            loop
-
-processCardsInMessage :: (MonadVK m, MonadCardsDB m) => Message -> m ()
-processCardsInMessage msg = do
-    where
--}
-
 getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
 getCardImage c = do
     url <- imageURL <$> get
@@ -167,10 +138,15 @@ getCardImage c = do
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
         Nothing -> do
-            r <- liftIO . W.get $ imgurl
-            pid <- uploadPhoto (r ^. W.responseBody)
-            liftIO $ update acid (InsertPic imgurl pid)
-            return pid
+            r <- liftIO $ ((Right <$> W.get imgurl) `E.catch` \(e :: SomeException) -> return (Left e))
+            case r of
+                Right r' -> do
+                    pid <- uploadPhoto (r' ^. W.responseBody)
+                    unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
+                    return pid
+                Left e -> do
+                    liftIO . infoM rootLoggerName $ "No image for " ++ name c ++ " found"
+                    return ""
         Just pid -> do
             return pid
     liftIO $ closeAcidState acid
