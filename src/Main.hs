@@ -28,6 +28,7 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     initLogger
+    infoM rootLoggerName "=== START ==="
     cfg <- loadConfig "config.json"
     case cfg of
         Nothing -> criticalM rootLoggerName "Failed to load config.json!"
@@ -71,10 +72,10 @@ processCardsInMessage msg = do
     let parsedCards = parseCards . message $ msg
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
     filtCards <- traverse (processCard prio) aliasedCards
-    attachments <- traverse (getCardImage) filtCards
-    let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
-    sendMessage retmsg
-    where
+    unless (null filtCards) $ do
+        attachments <- traverse (getCardImage) filtCards
+        let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
+        sendMessage retmsg
 
 getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
 getCardImage c = do
@@ -85,9 +86,10 @@ getCardImage c = do
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
         Nothing -> do
+            -- TODO: CRASH POTENTIAL
             r <- liftIO . W.get $ imgurl
             pid <- uploadPhoto (r ^. W.responseBody)
-            liftIO $ update acid (InsertPic imgurl pid)
+            unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
             return pid
         Just pid -> do
             return pid
