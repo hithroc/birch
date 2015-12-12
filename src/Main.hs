@@ -17,8 +17,10 @@ import qualified Data.Map as Map
 import qualified Network.Wreq as W
 import Control.Lens
 import VK
+import VK.Users
 import Control.Concurrent
 import Control.Exception as E
+import System.Exit
 
 import Data.Acid
 import CardPictureDB
@@ -28,20 +30,56 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     initLogger
-    main' `E.catch` mainHandler 20
+    relaunch
     where
+        handlers :: Int -> [Handler ()]
+        handlers i = [E.Handler $ mainHandler i, E.Handler interruptHandler, E.Handler exitHandler]
+        relaunch = main' `E.catches` handlers 5
         main' = do
             cfg <- loadConfig "config.json"
-            undefined
+            let initCfg :: (MonadConfig m, MonadIO m) => m ()
+                initCfg = do
+                    updateSets
+                    locs <- locales <$> get
+                    cards <- traverse (readCards . Locale) locs
+                    let c = Map.fromList $ zip locs cards
+                    evalStateT (runReaderT initVK c) defaultVKData
+                initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
+                initVK = do
+                    login
+                    myUser <- getUser Nothing
+                    case myUser of
+                        Nothing -> liftIO $ warningM rootLoggerName "Failed to fetch user's name!"
+                        Just myUser' -> modify (\x -> x { logUser = myUser' })
+                    loop
+            case cfg of
+                Nothing -> do
+                    errorM rootLoggerName "Failed to load config.json!"
+                    exitFailure
+                Just cfg' -> void $ evalStateT initCfg cfg'
+        mainHandler :: Int -> SomeException -> IO ()
         mainHandler 0 e = do
             emergencyM rootLoggerName $ "It's dead, Jim"
             error "The program is completely crashed"
         mainHandler i e = do
             criticalM rootLoggerName $ "The program crashed with an exception: "
-                                     ++ E.displayException (e :: SomeException)
+                                     ++ E.displayException e
                                      ++ "! Fix this!"
             infoM rootLoggerName $ "Recovering from crash"
-            main' `E.catch` mainHandler (i-1)
+            main' `E.catches` handlers (i-1)
+        exitHandler :: ExitCode -> IO ()
+        exitHandler (ExitFailure _) = exitFailure
+        exitHandler _ = relaunch
+
+        interruptHandler UserInterrupt = return ()
+        interruptHandler _ = relaunch
+
+loop :: (MonadVK m, MonadCardsDB m) => m ()
+loop = do
+    liftIO $ getLine
+    (VKUser _ uname _) <- logUser <$> get
+    liftIO $ putStrLn uname
+    loop
 {-
 main :: IO ()
 main = do

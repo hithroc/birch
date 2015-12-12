@@ -15,8 +15,6 @@ import qualified Data.Text as T
 import qualified Control.Exception as E
 import qualified Data.ByteString.Lazy as BS
 
-data ID = UserID Integer | ChatID Integer
-    deriving Show
 data Message = Message
     { msgID :: Integer
     , uid :: ID

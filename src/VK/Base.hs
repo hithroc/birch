@@ -26,6 +26,11 @@ instance FromJSON LongPollServer where
                        <*> resp .: "ts"
     parseJSON _ = mzero
 
+data ID = UserID Integer | ChatID Integer
+    deriving Show
+data VKUser = VKUser ID String String
+    deriving Show
+
 data VKData = VKData
     { accessToken :: String
     , expireDate :: Maybe UTCTime
@@ -34,6 +39,7 @@ data VKData = VKData
     , apiVersion :: String
     , lastMessageID :: Integer
     , longPollServer :: Maybe LongPollServer
+    , logUser :: VKUser
     }
 
 
@@ -53,7 +59,7 @@ defaultDispatcher at ver meth args = do
             W.getWith opts url `E.catch` handler
 
 defaultVKData :: VKData
-defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0 Nothing
+defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0 Nothing (VKUser (UserID 0) "" "")
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do
