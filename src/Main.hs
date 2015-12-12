@@ -86,11 +86,15 @@ getCardImage c = do
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
         Nothing -> do
-            -- TODO: CRASH POTENTIAL
-            r <- liftIO . W.get $ imgurl
-            pid <- uploadPhoto (r ^. W.responseBody)
-            unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
-            return pid
+            r <- liftIO $ ((Right <$> W.get imgurl) `E.catch` \(e :: SomeException) -> return (Left e))
+            case r of
+                Right r' -> do
+                    pid <- uploadPhoto (r' ^. W.responseBody)
+                    unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
+                    return pid
+                Left e -> do
+                    liftIO . infoM rootLoggerName $ "No image for " ++ name c ++ " found"
+                    return ""
         Just pid -> do
             return pid
     liftIO $ closeAcidState acid
