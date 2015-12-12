@@ -27,6 +27,7 @@ executable hsvkbot
   default-extensions:  OverloadedStrings
                     ,  ConstraintKinds
                     ,  FlexibleContexts
+                    ,  ScopedTypeVariables
   build-depends:       base >= 4.7 && < 5
                ,       aeson >= 0.8 && < 0.9
                ,       aeson-lens >= 0.5 && < 0.6

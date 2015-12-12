@@ -7,8 +7,6 @@ import Control.Monad.Trans
 import Data.Aeson
 import qualified Network.Wreq as W
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString.Char8 as BSS
-import Network.HTTP.Types.URI
 
 data PhotoServ = PhotoServ String
 data UploadResponse = UploadResponse Integer String String
@@ -51,7 +49,7 @@ uploadPhoto raw = do
             case decode (r ^. W.responseBody) of
                 Nothing -> return ""
                 Just (UploadResponse s p h) -> do
-                    info <- dispatch "photos.saveMessagesPhoto" [("server", show s), ("photo", BSS.unpack . urlEncode False . BSS.pack $ p), ("hash", h)]
+                    info <- dispatch "photos.saveMessagesPhoto" [("server", show s), ("photo", p), ("hash", h)]
                     let resp = decode info :: Maybe PhotoResponse
                         photos :: Maybe [Photo]
                         photos = resp >>= (\(PhotoResponse x) -> decode . encode $ x)

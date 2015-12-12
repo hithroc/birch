@@ -1,7 +1,7 @@
 module VK.Base where
 
 import Config
-import Control.Lens ((^.))
+import Control.Lens ((^.), (.~),(&))
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import Data.Aeson
@@ -13,6 +13,7 @@ import System.Log.Logger
 import qualified Data.ByteString.Lazy as BS
 import qualified Control.Exception as E
 import Network.HTTP.Client
+import qualified Data.Text as T
 
 type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
 data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
@@ -40,16 +41,16 @@ type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
-    r <- W.get toUrl `E.catch` handler
+    r <- W.getWith opts url `E.catch` handler
     return $ r ^. W.responseBody
     where
-        toUrl = foldl (\a b -> a ++ "&" ++ b) ("https://api.vk.com/method/" ++ meth ++ "?v=" ++ ver) params
-        params = map (\(x, y) -> x ++ "=" ++ y) withat
-        withat = ("access_token", at):args
+        url = "https://api.vk.com/method/" ++ meth
+        opts = foldl (&) W.defaults $ map (\(x, y) -> W.param (T.pack x) .~ [T.pack y]) args'
+        args' = [("v",ver), ("access_token", at)] ++ args
         handler :: HttpException -> IO (Response BS.ByteString)
         handler e = do
             warningM rootLoggerName $ "Dispatcher exception: " ++ show e ++ "! Trying again"
-            W.get toUrl `E.catch` handler
+            W.getWith opts url `E.catch` handler
 
 defaultVKData :: VKData
 defaultVKData = VKData "" Nothing [V.Messages, V.Photos] defaultDispatcher "5.40" 0 Nothing
