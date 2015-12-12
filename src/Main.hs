@@ -21,10 +21,19 @@ import VK.Users
 import Control.Concurrent
 import Control.Exception as E
 import System.Exit
-
+import Data.List
 import Data.Acid
 import CardPictureDB
-import Debug.Trace
+
+data Command
+    = Version
+    | Help
+    deriving (Show, Read)
+
+data ProcessedMessage
+    = CardRequest String
+    | CommandRequest Command
+    deriving (Show)
 
 main :: IO ()
 main = do
@@ -33,7 +42,7 @@ main = do
     relaunch
     where
         handlers :: Int -> [Handler ()]
-        handlers i = [E.Handler $ mainHandler i, E.Handler interruptHandler, E.Handler exitHandler]
+        handlers i = [E.Handler interruptHandler, E.Handler exitHandler, E.Handler $ mainHandler i]
         relaunch = main' `E.catches` handlers 5
         main' = do
             cfg <- loadConfig "config.json"
@@ -76,10 +85,37 @@ main = do
 
 loop :: (MonadVK m, MonadCardsDB m) => m ()
 loop = do
-    liftIO $ getLine
     (VKUser _ uname _) <- logUser <$> get
-    liftIO $ putStrLn uname
+    msgs <- getLongPoll
+    let msgs' = map (\x -> (processMessage (uname ++ ", ") x, x)) msgs
+    traverse_ (executeMessage) msgs'
     loop
+
+
+command :: String -> Command
+command "version" = Version
+command _ = Help
+
+processMessage :: String -> Message -> ProcessedMessage
+processMessage prefix msg
+    | prefix `isPrefixOf` message msg = CommandRequest . command $ drop (length prefix) (message msg)
+    | otherwise = CardRequest $ message msg
+
+prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+
+executeMessage :: (MonadVK m, MonadCardsDB m) => (ProcessedMessage, Message) -> m ()
+executeMessage ((CommandRequest cmd), msg) = do
+    sendMessage (Message 0 (uid msg) (show cmd) [])
+
+executeMessage ((CardRequest req), msg) = do
+    a <- aliases <$> get
+    let parsedCards = parseCards . message $ msg
+        aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
+    filtCards <- traverse (processCard prio) aliasedCards
+    attachments <- traverse (getCardImage) filtCards
+    let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
+    sendMessage retmsg
+
 {-
 main :: IO ()
 main = do
@@ -97,7 +133,6 @@ initLogger = do
     updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
     updateGlobalLogger rootLoggerName $ setLevel DEBUG
 {-
-prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
 main' :: (MonadConfig m, MonadIO m) => m ()
 main' = do
@@ -115,24 +150,17 @@ main' = do
         loop :: (MonadVK m, MonadCardsDB m) => m ()
         loop = do
             liftIO $ threadDelay 3000000
-            msgs <- getLongPoll
             traverse_ processCardsInMessage msgs
             loop
 
 processCardsInMessage :: (MonadVK m, MonadCardsDB m) => Message -> m ()
 processCardsInMessage msg = do
-    a <- aliases <$> ask
-    let parsedCards = parseCards . message $ msg
-        aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
-    filtCards <- traverse (processCard prio) aliasedCards
-    attachments <- traverse (getCardImage) filtCards
-    let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
-    sendMessage retmsg
     where
+-}
 
 getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
 getCardImage c = do
-    url <- imageURL <$> ask
+    url <- imageURL <$> get
     let (Locale loc) = locale c
     let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
     acid <- liftIO $ openLocalState (CardPics Map.empty)
@@ -147,4 +175,3 @@ getCardImage c = do
             return pid
     liftIO $ closeAcidState acid
     return pid
--}
