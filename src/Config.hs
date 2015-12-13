@@ -17,6 +17,7 @@ data Config = Config
     , dataFol :: String
     , locales :: [String]
     , aliases :: Aliases
+    , admins :: [Integer]
     }
 
 instance FromJSON Config where
@@ -29,6 +30,7 @@ instance FromJSON Config where
                         <*> v .: "data"
                         <*> v .: "locales"
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
+                        <*> v .: "admins"
     parseJSON _ = mzero
 
 type MonadConfig = MonadState Config

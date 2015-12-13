@@ -28,6 +28,7 @@ import Version
 
 data Command
     = Version
+    | Reload
     | Help
     deriving (Show, Read)
 
@@ -39,6 +40,7 @@ data ProcessedMessage
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
+    infoM rootLoggerName "=== START ==="
     initLogger
     relaunch
     where
@@ -105,6 +107,7 @@ loop = do
 
 command :: String -> Command
 command "version" = Version
+command "reload" = Reload
 command _ = Help
 
 processMessage :: String -> Message -> ProcessedMessage
@@ -118,6 +121,19 @@ executeMessage :: (MonadVK m, MonadCardsDB m) => (ProcessedMessage, Message) -> 
 executeMessage ((CommandRequest cmd), msg) = do
     case cmd of
         Version -> sendMessage (Message 0 (uid msg) ("Current version: " ++ version) [])
+        Reload -> do
+            adm <- admins <$> get
+            case uid msg of
+                ChatID _ -> return ()
+                UserID i -> do
+                    if i `elem` adm then do
+                        cfg <- liftIO $ loadConfig "config.json"
+                        case cfg of
+                            Nothing -> sendMessage $ Message 0 (uid msg) "Failed to reload config" []
+                            Just cfg' -> do
+                                modify (const cfg')
+                                sendMessage $ Message 0 (uid msg) "Config reloaded" []
+                    else return ()
         _ -> return ()
 
 executeMessage ((CardRequest req), msg) = do
