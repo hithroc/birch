@@ -1,2 +1,6 @@
 import Distribution.Simple
-main = defaultMain
+import System.Process
+main = do
+    -- I'm not happy about this
+    _ <- readProcess "touch" ["./src/Version/TH.hs"] ""
+    defaultMain
