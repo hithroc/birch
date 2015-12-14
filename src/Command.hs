@@ -77,9 +77,11 @@ execute vid Quote = do
     (r, _) <- randomR (1,lid) <$> (liftIO getStdGen)
     res <- dispatch "messages.getById" [("message_ids", show r)]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
+    liftIO $ print msgs
     case msgs of
         (x:_) -> do
-            if userID (uid x) `elem` banned then
+            if userID (uid x) `elem` banned then do
+                liftIO $ putStrLn "The quote is from banned user. Skip"
                 execute vid Quote
             else
                 sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
