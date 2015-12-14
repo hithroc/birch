@@ -54,6 +54,7 @@ defaultDispatcher at ver meth args = do
         opts = foldl (&) W.defaults $ map (\(x, y) -> W.param (T.pack x) .~ [T.pack y]) args'
         args' = [("v",ver), ("access_token", at)] ++ args
         handler :: HttpException -> IO (Response BS.ByteString)
+        handler (FailedConnectionException _ _) = W.getWith opts url `E.catch` handler
         handler e = do
             warningM rootLoggerName $ "Dispatcher exception: " ++ show e ++ "! Trying again"
             W.getWith opts url `E.catch` handler
