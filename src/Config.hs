@@ -18,6 +18,7 @@ data Config = Config
     , locales :: [String]
     , aliases :: Aliases
     , admins :: [Integer]
+    , bannedForQuote :: [Integer]
     }
 
 instance FromJSON Config where
@@ -31,6 +32,7 @@ instance FromJSON Config where
                         <*> v .: "locales"
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
                         <*> v .: "admins"
+                        <*> v .: "quotebanned"
     parseJSON _ = mzero
 
 type MonadConfig = MonadState Config

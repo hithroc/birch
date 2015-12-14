@@ -8,6 +8,7 @@ import Data.List
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import System.Log.Logger
+import Data.Aeson
 import Data.Char
 import Data.Maybe
 import Data.Acid
@@ -72,8 +73,17 @@ execute vid (CardRequest msg) = do
 
 execute vid Quote = do
     lid <- lastMessageID <$> get
+    banned <- bannedForQuote <$> get
     (r, _) <- randomR (1,lid) <$> (liftIO getStdGen)
-    sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
+    res <- dispatch "messages.getById" [("message_ids", show r)]
+    let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
+    case msgs of
+        (x:_) -> do
+            if userID (uid x) `elem` banned then
+                execute vid Quote
+            else
+                sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
+        _ -> execute vid Quote
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
