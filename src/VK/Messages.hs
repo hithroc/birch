@@ -4,6 +4,7 @@ import VK.Base
 import Data.Aeson
 import Data.List
 import Data.Maybe
+import Text.Read (readMaybe)
 import Control.Lens
 import Control.Monad
 import Control.Monad.Ether.Implicit
@@ -87,7 +88,7 @@ sendMessage msg = do
 
 intToID :: Integer -> Map.Map String LongPollValue -> ID
 intToID i m
-    | i > 2000000000 = ChatID (maybe 0 intdata (Map.lookup "from" m)) $ i - 2000000000
+    | i > 2000000000 = ChatID (fromMaybe 0 (textdata <$> Map.lookup "from" m >>= readMaybe)) $ i - 2000000000
     | otherwise = UserID i
 
 longToMsg :: [LongPollValue] -> Maybe Message
