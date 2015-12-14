@@ -22,6 +22,7 @@ data Message = Message
     , uid :: ID
     , message :: String
     , attachment :: [String]
+    , forwarded :: [Integer]
     }
     deriving Show
 data MessageResponse = MessageResponse [Message]
@@ -41,7 +42,7 @@ instance FromJSON Message where
         userid <- v .: "user_id"
         chatid <- v .:? "chat_id"
         body <- v .: "body"
-        return $ Message mid (maybe (UserID userid) (ChatID userid) chatid) body []
+        return $ Message mid (maybe (UserID userid) (ChatID userid) chatid) body [] []
     parseJSON _ = mzero
 
 instance FromJSON MessageResponse where
@@ -82,7 +83,11 @@ sendMessage msg = do
                 [("attachment", concat . intersperse "," . attachment $ msg)]
             else
                 []
-    _ <- dispatch "messages.send" withattach
+        withfwd = withattach ++ if not $ null (forwarded msg) then
+                [("forward_messages", concat . intersperse "," . map show . forwarded $ msg)]
+            else
+                []
+    _ <- dispatch "messages.send" withfwd
     return ()
 
 
@@ -95,7 +100,7 @@ longToMsg :: [LongPollValue] -> Maybe Message
 longToMsg [] = Nothing
 longToMsg v = 
     if intdata (head v) == 4
-    then Just $ Message (intdata (v !! 1)) (intToID (intdata (v !! 3)) (objdata (v !! 7))) (textdata (v !! 6)) []
+    then Just $ Message (intdata (v !! 1)) (intToID (intdata (v !! 3)) (objdata (v !! 7))) (textdata (v !! 6)) [] []
     else Nothing
 
 getLongPoll :: MonadVK m => m [Message]
@@ -116,7 +121,6 @@ getLongPoll = do
                 autocatch :: IO (W.Response BS.ByteString)
                 autocatch = W.get url `E.catch` catchhandler
             r <- liftIO $ autocatch
-            liftIO$print$r^.W.responseBody
             case decode (r ^. W.responseBody) of
                 Nothing -> do
                     liftIO $ infoM rootLoggerName "LongPoll server key expired (most likely). Retrying"
