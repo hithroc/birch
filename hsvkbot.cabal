@@ -16,6 +16,7 @@ executable hsvkbot
                ,       Card.Type
                ,       Card.Json
                ,       Config
+               ,       Command
                ,       Version
                ,       Version.TH
                ,       VK

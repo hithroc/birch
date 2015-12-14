@@ -21,7 +21,6 @@ getUser :: MonadVK m => Maybe ID -> m (Maybe VKUser)
 getUser i = do
     let args = case i of
             Nothing -> []
-            Just (ChatID _) -> []
-            Just (UserID i') -> [("user_ids", show i')]
+            Just i' -> [("user_ids", show $ userID i')]
 
     decode <$> dispatch "users.get" args

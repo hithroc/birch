@@ -26,7 +26,7 @@ instance FromJSON LongPollServer where
                        <*> resp .: "ts"
     parseJSON _ = mzero
 
-data ID = UserID Integer | ChatID Integer
+data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: Integer }
     deriving Show
 data VKUser = VKUser ID String String
     deriving Show

@@ -22,26 +22,14 @@ import Control.Concurrent
 import Control.Exception as E
 import System.Exit
 import Data.List
-import Data.Acid
-import CardPictureDB
 import Version
-
-data Command
-    = Version
-    | Reload
-    | Help
-    deriving (Show, Read)
-
-data ProcessedMessage
-    = CardRequest String
-    | CommandRequest Command
-    deriving (Show)
+import Command
 
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
-    infoM rootLoggerName "=== START ==="
     initLogger
+    infoM rootLoggerName "=== START ==="
     relaunch
     where
         handlers :: Int -> [Handler ()]
@@ -100,70 +88,6 @@ loop :: (MonadVK m, MonadCardsDB m) => m ()
 loop = do
     (VKUser _ uname _) <- logUser <$> get
     msgs <- getLongPoll
-    let msgs' = map (\x -> (processMessage (uname ++ ", ") x, x)) msgs
-    traverse_ (executeMessage) msgs'
+    commands <- traverse (parseCommand) msgs
+    traverse_ (\(x, y) -> execute (uid x) y) $ zip msgs commands
     loop
-
-
-command :: String -> Command
-command "version" = Version
-command "reload" = Reload
-command _ = Help
-
-processMessage :: String -> Message -> ProcessedMessage
-processMessage prefix msg
-    | prefix `isPrefixOf` message msg = CommandRequest . command $ drop (length prefix) (message msg)
-    | otherwise = CardRequest $ message msg
-
-prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
-
-executeMessage :: (MonadVK m, MonadCardsDB m) => (ProcessedMessage, Message) -> m ()
-executeMessage ((CommandRequest cmd), msg) = do
-    case cmd of
-        Version -> sendMessage (Message 0 (uid msg) ("Current version: " ++ version) [])
-        Reload -> do
-            adm <- admins <$> get
-            case uid msg of
-                ChatID _ -> return ()
-                UserID i -> do
-                    if i `elem` adm then do
-                        cfg <- liftIO $ loadConfig "config.json"
-                        case cfg of
-                            Nothing -> sendMessage $ Message 0 (uid msg) "Failed to reload config" []
-                            Just cfg' -> do
-                                modify (const cfg')
-                                sendMessage $ Message 0 (uid msg) "Config reloaded" []
-                    else return ()
-        _ -> return ()
-
-executeMessage ((CardRequest req), msg) = do
-    a <- aliases <$> get
-    let parsedCards = parseCards . message $ msg
-        aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
-    filtCards <- traverse (processCard prio) aliasedCards
-    attachments <- traverse (getCardImage) filtCards
-    let retmsg = Message 0 (uid msg) (unlines . map printCard $ filtCards) attachments
-    sendMessage retmsg
-
-getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
-getCardImage c = do
-    url <- imageURL <$> get
-    let (Locale loc) = locale c
-    let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
-    acid <- liftIO $ openLocalState (CardPics Map.empty)
-    mbPic <- liftIO $ query acid (GetPic imgurl)
-    pid <- case if isNotFound c then Just "" else mbPic of
-        Nothing -> do
-            r <- liftIO $ ((Right <$> W.get imgurl) `E.catch` \(e :: SomeException) -> return (Left e))
-            case r of
-                Right r' -> do
-                    pid <- uploadPhoto (r' ^. W.responseBody)
-                    unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
-                    return pid
-                Left e -> do
-                    liftIO . infoM rootLoggerName $ "No image for " ++ name c ++ " found"
-                    return ""
-        Just pid -> do
-            return pid
-    liftIO $ closeAcidState acid
-    return pid
