@@ -106,8 +106,12 @@ getLongPoll = do
             getLongPoll
         Just s -> do
             let url = "http://" ++ lpsurl s ++ "?act=a_check&key=" ++ lpskey s ++ "&ts=" ++ show (lpsts s) ++ "&wait=25&mode=2"
-            let autocatch :: IO (W.Response BS.ByteString)
-                autocatch = W.get url `E.catch` \ResponseTimeout -> autocatch
+            let catchhandler (ResponseTimeout) = autocatch
+                catchhandler e = do
+                    warningM rootLoggerName $ "Fetching LongPoll data exception: " ++ show e
+                    autocatch
+                autocatch :: IO (W.Response BS.ByteString)
+                autocatch = W.get url `E.catch` catchhandler
             r <- liftIO $ autocatch
             case decode (r ^. W.responseBody) of
                 Nothing -> do
