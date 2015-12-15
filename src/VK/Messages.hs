@@ -16,53 +16,7 @@ import qualified Data.Text as T
 import qualified Control.Exception as E
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
-
-data Message = Message
-    { msgID :: Integer
-    , uid :: ID
-    , message :: String
-    , attachment :: [String]
-    , forwarded :: [Integer]
-    }
-    deriving Show
-data MessageResponse = MessageResponse [Message]
-    deriving Show
-
-data LongPollValue 
-    = IntData  { intdata :: Integer }
-    | TextData { textdata :: String }
-    | ObjData  { objdata :: Map.Map String LongPollValue }
-    deriving (Ord, Eq)
-
-data LongPollResponse = LongPollResponse [[LongPollValue]] Integer
-
-instance FromJSON Message where
-    parseJSON (Object v) = do
-        mid <- v .: "id"
-        userid <- v .: "user_id"
-        chatid <- v .:? "chat_id"
-        body <- v .: "body"
-        return $ Message mid (maybe (UserID userid) (ChatID userid) chatid) body [] []
-    parseJSON _ = mzero
-
-instance FromJSON MessageResponse where
-    parseJSON (Object v) = do
-        resbody <- v .: "response"
-        items <- resbody .: "items"
-        return $ MessageResponse items
-    parseJSON _ = mzero
-
-instance FromJSON LongPollValue where
-    parseJSON (Number n) = return $ IntData (truncate n)
-    parseJSON (String t) = return $ TextData (T.unpack t) 
-    parseJSON (Object v) = ObjData <$> parseJSON (Object v)
-    parseJSON _ = mzero
-
-instance FromJSON LongPollResponse where
-    parseJSON (Object v) = LongPollResponse
-                        <$> v .: "updates"
-                        <*> v .: "ts"
-    parseJSON _ = mzero
+import VK.Types
 
 getMessages :: MonadVK m => m [Message]
 getMessages = do
@@ -89,7 +43,6 @@ sendMessage msg = do
                 []
     _ <- dispatch "messages.send" withfwd
     return ()
-
 
 intToID :: Integer -> Map.Map String LongPollValue -> ID
 intToID i m
@@ -131,4 +84,3 @@ getLongPoll = do
                     let msgs' = mapMaybe longToMsg msgs
                     unless (null msgs') $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs'})
                     return msgs'
-

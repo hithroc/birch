@@ -14,36 +14,7 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Control.Exception as E
 import Network.HTTP.Client
 import qualified Data.Text as T
-
-type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
-data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
-
-instance FromJSON LongPollServer where
-    parseJSON (Object v) = do
-        resp <- v .: "response"
-        LongPollServer <$> resp .: "key"
-                       <*> resp .: "server"
-                       <*> resp .: "ts"
-    parseJSON _ = mzero
-
-data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: Integer }
-    deriving Show
-data VKUser = VKUser ID String String
-    deriving Show
-
-data VKData = VKData
-    { accessToken :: String
-    , expireDate :: Maybe UTCTime
-    , accessRights :: [V.AccessRight]
-    , dispatcher :: Dispatcher
-    , apiVersion :: String
-    , lastMessageID :: Integer
-    , longPollServer :: Maybe LongPollServer
-    , logUser :: VKUser
-    }
-
-
-type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
+import VK.Types
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
