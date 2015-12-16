@@ -23,6 +23,7 @@ data Command
     = Version
     | Reload
     | Quote
+    | Update
     | CardRequest Message
 
 parseCommand :: MonadVK m => Message -> m Command
@@ -33,6 +34,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("version":_) -> Version
         Just ("reload":_) -> Reload
         Just ("quote":_) -> Quote
+        Just ("update":_) -> Update
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
@@ -52,15 +54,13 @@ prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
 execute :: (MonadVK m, MonadCardsDB m) => ID -> Command -> m ()
 execute vid Version = sendMessage (Message 0 vid ("Current version: " ++ version) [] [])
-execute vid Reload = do
-    let f = do
-            cfg <- liftIO $ loadConfig "config.json"
-            case cfg of
-                Nothing -> sendMessage $ Message 0 vid "Failed to reload config" [] []
-                Just cfg' -> do
-                    modify (const cfg')
-                    sendMessage $ Message 0 vid "Config reloaded" [] []
-    withPermission vid f
+execute vid Reload = withPermission vid $ do
+    cfg <- liftIO $ loadConfig "config.json"
+    case cfg of
+        Nothing -> sendMessage $ Message 0 vid "Failed to reload config" [] []
+        Just cfg' -> do
+            modify (const cfg')
+            sendMessage $ Message 0 vid "Config reloaded" [] []
 
 execute vid (CardRequest msg) = do
     a <- aliases <$> get
@@ -84,6 +84,10 @@ execute vid Quote = do
             else
                 sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
         _ -> execute vid Quote
+
+execute vid Update = withPermission vid $ do
+    updateSets
+    sendMessage $ Message 0 vid "Sets updated!" [] []
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
