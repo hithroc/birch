@@ -6,13 +6,15 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans
 import Data.Aeson
+import System.Process
 import qualified Network.Wreq as W
 import qualified Data.ByteString.Lazy as BS
 
 data AudioServ = AudioServ String
 data AudioUploadResponse = AudioUploadResponse Integer String String
-data AudioResponse = AudioResponse [Audio]
-data Audio = Audio String String
+data AudioResponse = AudioResponse Audio
+data Audio = Audio Integer Integer
+    deriving Show
 
 instance FromJSON AudioServ where
     parseJSON (Object v) = do
@@ -28,21 +30,20 @@ instance FromJSON AudioUploadResponse where
                         <*> v .: "hash"
     parseJSON _ = mzero
 
-instance FromJSON AudioResponse where
+instance FromJSON Audio where
     parseJSON (Object v) = do
         res <- v .: "response"
-        return $ AudioResponse res
+        o <- res .: "owner_id"
+        i <- res .: "id"
+        return $ Audio o i
     parseJSON _ = mzero
-
-instance FromJSON Audio where
-    parseJSON (Object v) = Audio
-                        <$> v .: "owner_id"
-                        <*> v .: "id"
-    parseJSON _ = mzero
-
 
 uploadAudio :: MonadVK m => String -> String -> BS.ByteString -> m (String)
-uploadAudio artist title raw = do
+uploadAudio artist title raw' = do
+    let filename = artist ++ title ++ ".mp3"
+    liftIO $ BS.writeFile filename raw'
+    _ <- liftIO $ readProcess "sox" [filename, "_" ++ filename, "pad", "0", "3"] ""
+    raw <- liftIO $ BS.readFile $ "_" ++ filename
     serv <- dispatch "audio.getUploadServer" []
     case decode serv of
         Nothing -> return ""
@@ -51,11 +52,7 @@ uploadAudio artist title raw = do
             case decode (r ^. W.responseBody) of
                 Nothing -> return ""
                 Just (AudioUploadResponse s a h) -> do
-                    liftIO $ putStrLn $ show s ++ ":" ++ a ++ ":" ++ h
                     info <- dispatch "audio.save" [("server", show s), ("audio", a), ("hash", h), ("artist", artist), ("title", title)]
-                    liftIO $ print info
-                    let resp = decode info :: Maybe AudioResponse
-                        audios :: Maybe [Audio]
-                        audios = (\(AudioResponse xs) -> xs) <$> resp
+                    let resp = decode info :: Maybe Audio
                         toAttachment = \(Audio o i) -> "audio" ++ show o ++ "_" ++ show i
-                    return $ maybe "" (toAttachment . head) $ audios
+                    return $ maybe "" (toAttachment) $ resp

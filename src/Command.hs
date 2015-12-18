@@ -13,6 +13,7 @@ import Data.Char
 import Data.Maybe
 import Data.Acid
 import CardPictureDB
+import AudioDB
 import Control.Lens
 import System.Random
 import qualified Data.ByteString.Lazy as BS
@@ -27,6 +28,7 @@ data Command
     | Quote
     | Update
     | CardRequest Message
+
 
 parseCommand :: MonadVK m => Message -> m Command
 parseCommand msg@(Message {message = msgtext}) = do
@@ -130,27 +132,34 @@ downloadFile url = do
 
 getCardSound :: (MonadVK m, MonadCardsDB m) => SoundType -> Card -> m (String)
 getCardSound st c = do
-    url <- soundURL <$> get
     let (Locale loc) = locale c
-        filenames :: [String]
-        filenames = do
-            number <- [1..9]
-            soundtype <- [map toUpper (show st), show st]
-            return ("VO_" ++ cardID c ++ "_" ++ soundtype ++ "_0" ++ show number ++ ".mp3")
-        audiourls = map (\x -> url ++ (if loc == "enUS" then "" else map toLower loc ++ "/") ++ x) filenames
-        downloader :: [String] -> IO (Maybe BS.ByteString)
-        downloader [] = return Nothing
-        downloader (fname:fnames) = do
-            x <- downloadFile fname
-            case x of
-                Left e -> downloader fnames
-                Right res -> return $ Just res
-    d <- liftIO $ downloader audiourls
-    case d of
-        Nothing -> do
-            liftIO . infoM rootLoggerName $ "No sound file for " ++ name c ++ ":" ++ show st ++ " found"
-            return ""
-        Just rawdata -> do
-            liftIO $ print rawdata
-            aid <- uploadAudio (name c) (show st) rawdata
-            return aid
+        audiouid = show st ++ loc ++ cardID c
+    acid <- liftIO $ openLocalState (AudioIds Map.empty)
+    mbAudio <- liftIO $ query acid (GetAudio audiouid)
+    pid <- case if isNotFound c then Just "" else mbAudio of
+        Just x -> return x
+        Nothing -> do 
+            url <- soundURL <$> get
+            let filenames :: [String]
+                filenames = do
+                    number <- [1..9]
+                    soundtype <- [map toUpper (show st), show st]
+                    return ("VO_" ++ cardID c ++ "_" ++ soundtype ++ "_0" ++ show number ++ ".mp3")
+                audiourls = map (\x -> url ++ (if loc == "enUS" then "" else map toLower loc ++ "/") ++ x) filenames
+                downloader :: [String] -> IO (Maybe BS.ByteString)
+                downloader [] = return Nothing
+                downloader (fname:fnames) = do
+                    x <- downloadFile fname
+                    case x of
+                        Left e -> downloader fnames
+                        Right res -> return $ Just res
+            d <- liftIO $ downloader audiourls
+            p <- case d of
+                Nothing -> do
+                    liftIO . infoM rootLoggerName $ "No sound file for " ++ name c ++ ":" ++ show st ++ " found"
+                    return ""
+                Just rawdata -> uploadAudio (name c) (show st) rawdata
+            unless (null p) . liftIO $ update acid (InsertAudio audiouid p)
+            return p
+    liftIO $ closeAcidState acid
+    return pid
