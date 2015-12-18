@@ -42,7 +42,7 @@ uploadAudio :: MonadVK m => String -> String -> BS.ByteString -> m (String)
 uploadAudio artist title raw' = do
     let filename = artist ++ title ++ ".mp3"
     liftIO $ BS.writeFile filename raw'
-    _ <- liftIO $ readProcess "sox" [filename, "_" ++ filename, "pad", "0", "3"] ""
+    _ <- liftIO $ readProcess "sox" [filename, "_" ++ filename, "pad", "0", "5"] ""
     raw <- liftIO $ BS.readFile $ "_" ++ filename
     serv <- dispatch "audio.getUploadServer" []
     case decode serv of
