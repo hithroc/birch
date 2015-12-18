@@ -47,11 +47,13 @@ uploadAudio artist title raw = do
     case decode serv of
         Nothing -> return ""
         Just (AudioServ servstr) -> do
-            r <- liftIO $ W.post servstr [W.partLBS "file" raw]
+            r <- liftIO $ W.post servstr [W.partLBS "file" raw & W.partFileName .~ Just "soundfile.mp3"]
             case decode (r ^. W.responseBody) of
                 Nothing -> return ""
                 Just (AudioUploadResponse s a h) -> do
+                    liftIO $ putStrLn $ show s ++ ":" ++ a ++ ":" ++ h
                     info <- dispatch "audio.save" [("server", show s), ("audio", a), ("hash", h), ("artist", artist), ("title", title)]
+                    liftIO $ print info
                     let resp = decode info :: Maybe AudioResponse
                         audios :: Maybe [Audio]
                         audios = (\(AudioResponse xs) -> xs) <$> resp

@@ -124,6 +124,7 @@ getCardImage c = do
 
 downloadFile :: String -> IO (Either E.SomeException BS.ByteString)
 downloadFile url = do
+    infoM rootLoggerName $ "Downloading " ++ url
     r <- (Right <$> W.get url) `E.catch` \(e :: E.SomeException) ->  return (Left e)
     return (fmap (\x -> x ^. W.responseBody) r)
 
@@ -133,10 +134,10 @@ getCardSound st c = do
     let (Locale loc) = locale c
         filenames :: [String]
         filenames = do
-            number <- [1..10]
+            number <- [1..9]
             soundtype <- [map toUpper (show st), show st]
-            return (cardID c ++ "_" ++ soundtype ++ "_" ++ show number ++ ".mp3")
-        audiourls = map (\x -> url ++ (if loc == "unUS" then "" else map toLower loc ++ "/") ++ x) filenames
+            return ("VO_" ++ cardID c ++ "_" ++ soundtype ++ "_0" ++ show number ++ ".mp3")
+        audiourls = map (\x -> url ++ (if loc == "enUS" then "" else map toLower loc ++ "/") ++ x) filenames
         downloader :: [String] -> IO (Maybe BS.ByteString)
         downloader [] = return Nothing
         downloader (fname:fnames) = do
@@ -150,5 +151,6 @@ getCardSound st c = do
             liftIO . infoM rootLoggerName $ "No sound file for " ++ name c ++ ":" ++ show st ++ " found"
             return ""
         Just rawdata -> do
+            liftIO $ print rawdata
             aid <- uploadAudio (name c) (show st) rawdata
             return aid
