@@ -1,11 +1,13 @@
 module Card.Parser where
 
 import Text.ParserCombinators.Parsec
-import Card.Type (Locale(..))
+import Card.Type (Locale(..), SoundType(..))
 import Data.Maybe
 import qualified Data.Set as S
 
-data CardTag = Loc Locale
+data CardTag 
+    = Loc Locale
+    | Snd SoundType
     deriving (Show, Eq, Ord)
 
 tag :: Parser (String, String)
@@ -40,4 +42,7 @@ cardTag :: (String, String) -> Maybe CardTag
 cardTag ("ru", _) = Just $ Loc (Locale "ruRU")
 cardTag ("en", _) = Just $ Loc (Locale "enUS")
 cardTag ("locale", l) = Just $ Loc (Locale l)
+cardTag ("sound", "death") = Just $ Snd Death
+cardTag ("sound", "attack") = Just $ Snd Attack
+cardTag ("sound", "play") = Just $ Snd Play
 cardTag _ = Nothing

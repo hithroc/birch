@@ -15,9 +15,11 @@ import Data.Acid
 import CardPictureDB
 import Control.Lens
 import System.Random
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
 import qualified Control.Exception as E
 import qualified Network.Wreq as W
+import qualified Data.Set as S
 
 data Command
     = Version
@@ -67,8 +69,14 @@ execute vid (CardRequest msg) = do
     let parsedCards = parseCards . message $ msg
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
     filtCards <- traverse (processCard prio) aliasedCards
-    attachments <- traverse (getCardImage) filtCards
-    let retmsg = Message 0 vid (unlines . map printCard $ filtCards) attachments []
+    pattachments <- traverse (getCardImage . snd) filtCards
+    let audioget (tags, card) = do
+            let action x = case x of
+                    Snd st -> getCardSound st card
+                    _ -> return ""
+            traverse (action) $ S.toList tags
+    aattachments <- concat <$> traverse (audioget) filtCards
+    let retmsg = Message 0 vid (unlines . map (printCard . snd) $ filtCards) (pattachments ++ aattachments) []
     sendMessage retmsg
 
 execute vid Quote = do
@@ -95,7 +103,7 @@ getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
 getCardImage c = do
     url <- imageURL <$> get
     let (Locale loc) = locale c
-    let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
+        imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
     acid <- liftIO $ openLocalState (CardPics Map.empty)
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
@@ -113,3 +121,34 @@ getCardImage c = do
             return pid
     liftIO $ closeAcidState acid
     return pid
+
+downloadFile :: String -> IO (Either E.SomeException BS.ByteString)
+downloadFile url = do
+    r <- (Right <$> W.get url) `E.catch` \(e :: E.SomeException) ->  return (Left e)
+    return (fmap (\x -> x ^. W.responseBody) r)
+
+getCardSound :: (MonadVK m, MonadCardsDB m) => SoundType -> Card -> m (String)
+getCardSound st c = do
+    url <- soundURL <$> get
+    let (Locale loc) = locale c
+        filenames :: [String]
+        filenames = do
+            number <- [1..10]
+            soundtype <- [map toUpper (show st), show st]
+            return (cardID c ++ "_" ++ soundtype ++ "_" ++ show number ++ ".mp3")
+        audiourls = map (\x -> url ++ (if loc == "unUS" then "" else map toLower loc ++ "/") ++ x) filenames
+        downloader :: [String] -> IO (Maybe BS.ByteString)
+        downloader [] = return Nothing
+        downloader (fname:fnames) = do
+            x <- downloadFile fname
+            case x of
+                Left e -> downloader fnames
+                Right res -> return $ Just res
+    d <- liftIO $ downloader audiourls
+    case d of
+        Nothing -> do
+            liftIO . infoM rootLoggerName $ "No sound file for " ++ name c ++ ":" ++ show st ++ " found"
+            return ""
+        Just rawdata -> do
+            aid <- uploadAudio (name c) (show st) rawdata
+            return aid

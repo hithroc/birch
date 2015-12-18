@@ -51,12 +51,12 @@ processTag _ c = return c
 processTags :: MonadCardsDB m => [CardTag] -> Card -> m Card
 processTags tags card = foldl (\a b -> a >>= processTag b) (return card) tags
 
-processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, String) -> m (Card)
+processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, String) -> m (S.Set CardTag, Card)
 processCard prio (tags, n) = do
     fc <- searchBy name n
     let cards = concatMap snd . Map.toList $ fc
     if null cards then
-        return $ notFoundCard { name = n }
+        return $ (tags, notFoundCard { name = n })
     else do
         let resultcard = priority cards prio
-        processTags (S.toList tags) resultcard
+        (\x -> (tags, x)) <$> processTags (S.toList tags) resultcard

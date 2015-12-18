@@ -10,6 +10,11 @@ import Control.Monad
 data Locale = Locale String
             | Unknown
     deriving (Read, Show, Eq, Ord)
+data SoundType
+    = Play
+    | Attack
+    | Death
+    deriving (Ord, Read, Show, Eq)
 
 data Rarity
     = Free

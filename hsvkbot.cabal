@@ -24,6 +24,7 @@ executable hsvkbot
                ,       VK.Photos
                ,       VK.Base
                ,       VK.Users
+               ,       VK.Audio
                ,       CardPictureDB
   ghc-options:         -Wall -O2 -fno-warn-unused-do-bind
   main-is:             Main.hs

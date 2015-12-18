@@ -13,6 +13,7 @@ data Config = Config
     , vkPass :: String
     , appID :: String
     , imageURL :: String
+    , soundURL :: String
     , jsonURL :: String
     , dataFol :: String
     , locales :: [String]
@@ -27,6 +28,7 @@ instance FromJSON Config where
                         <*> v .: "password"
                         <*> v .: "appID"
                         <*> v .: "imageURL"
+                        <*> v .: "soundURL"
                         <*> v .: "jsonURL"
                         <*> v .: "data"
                         <*> v .: "locales"
