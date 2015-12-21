@@ -1,4 +1,4 @@
-name:                hsvkbot
+name:                birch
 version:             0.2.1.0
 synopsis:            Hearthstone card fetcher for VK
 description:         Please see README.md
@@ -9,7 +9,7 @@ category:            Web
 build-type:          Custom
 cabal-version:       >=1.10
 
-executable hsvkbot
+executable birch
   hs-source-dirs:      src
   other-modules:       Card
                ,       Card.Parser
