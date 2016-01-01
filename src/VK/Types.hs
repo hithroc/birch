@@ -15,7 +15,7 @@ data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts
 type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: Integer }
-    deriving Show
+    deriving (Show, Eq, Ord)
 data VKUser = VKUser ID String String
     deriving Show
 
@@ -28,6 +28,7 @@ data VKData = VKData
     , lastMessageID :: Integer
     , longPollServer :: Maybe LongPollServer
     , logUser :: VKUser
+    , quoteCooldown :: Map.Map ID UTCTime
     }
 
 data Message = Message

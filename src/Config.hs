@@ -1,6 +1,7 @@
 module Config where
 
 import Data.Aeson
+import Data.Time.Clock
 import Data.Char
 import qualified Data.ByteString.Lazy as BS
 import Control.Monad.Ether.Implicit
@@ -20,6 +21,7 @@ data Config = Config
     , aliases :: Aliases
     , admins :: [Integer]
     , bannedForQuote :: [Integer]
+    , quoteCD :: NominalDiffTime
     }
 
 instance FromJSON Config where
@@ -35,6 +37,7 @@ instance FromJSON Config where
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
                         <*> v .: "admins"
                         <*> v .: "quotebanned"
+                        <*> (fromInteger <$> v .: "quotecd")
     parseJSON _ = mzero
 
 type MonadConfig = MonadState Config

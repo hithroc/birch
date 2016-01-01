@@ -5,6 +5,7 @@ import Version
 import VK
 import Config
 import Data.List
+import Data.Time.Clock
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import System.Log.Logger
@@ -87,18 +88,26 @@ execute vid (CardRequest msg) = do
     sendMessage retmsg
 
 execute vid Quote = do
-    lid <- lastMessageID <$> get
-    banned <- bannedForQuote <$> get
-    r <- liftIO $ randomRIO (1,lid)
-    res <- dispatch "messages.getById" [("message_ids", show r)]
-    let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
-    case msgs of
-        (x:_) -> do
-            if userID (uid x) `elem` banned then do
-                execute vid Quote
-            else
-                sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
-        _ -> execute vid Quote
+    cooldowns <- quoteCooldown <$> get
+    curtime <- liftIO $ getCurrentTime
+    cd <- quoteCD <$> get
+    let time = fromMaybe (addUTCTime (negate cd) curtime) (Map.lookup vid cooldowns)
+        diff = diffUTCTime curtime time
+    if diff >= cd then do
+        lid <- lastMessageID <$> get
+        banned <- bannedForQuote <$> get
+        r <- liftIO $ randomRIO (1,lid)
+        res <- dispatch "messages.getById" [("message_ids", show r)]
+        let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
+        case msgs of
+            (x:_) -> do
+                if userID (uid x) `elem` banned then do
+                    execute vid Quote
+                else do
+                    modify (\d -> d { quoteCooldown = Map.insert vid curtime cooldowns })
+                    sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
+            _ -> execute vid Quote
+    else sendMessage $ Message 0 vid ("You have to wait another " ++ show (truncate $ cd - diff) ++ " seconds before you can fetch next quote") [] []
 
 execute vid Update = withPermission vid $ do
     updateSets

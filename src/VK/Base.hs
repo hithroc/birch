@@ -15,6 +15,7 @@ import qualified Control.Exception as E
 import Network.HTTP.Client
 import qualified Data.Text as T
 import VK.Types
+import qualified Data.Map as Map
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
@@ -31,7 +32,7 @@ defaultDispatcher at ver meth args = do
             W.getWith opts url `E.catch` handler
 
 defaultVKData :: VKData
-defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio] defaultDispatcher "5.40" 0 Nothing (VKUser (UserID 0) "" "")
+defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio] defaultDispatcher "5.40" 0 Nothing (VKUser (UserID 0) "" "") (Map.empty)
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do
