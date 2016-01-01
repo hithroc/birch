@@ -27,6 +27,7 @@ data Command
     | Reload
     | Quote
     | Update
+    | CardCraft Rarity
     | CardRequest Message
 
 
@@ -39,6 +40,10 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("reload":_) -> Reload
         Just ("quote":_) -> Quote
         Just ("update":_) -> Update
+        Just (["which","legendary","to","craft"]) -> CardCraft Legendary
+        Just (["which","epic","to","craft"]) -> CardCraft Epic
+        Just (["which","rare","to","craft"]) -> CardCraft Rare
+        Just (["which","common","to","craft"]) -> CardCraft Common
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
@@ -84,7 +89,7 @@ execute vid (CardRequest msg) = do
 execute vid Quote = do
     lid <- lastMessageID <$> get
     banned <- bannedForQuote <$> get
-    (r, _) <- randomR (1,lid) <$> (liftIO newStdGen)
+    r <- liftIO $ randomRIO (1,lid)
     res <- dispatch "messages.getById" [("message_ids", show r)]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
     case msgs of
@@ -98,6 +103,15 @@ execute vid Quote = do
 execute vid Update = withPermission vid $ do
     updateSets
     sendMessage $ Message 0 vid "Sets updated!" [] []
+
+execute vid (CardCraft r) = do
+    (cards' :: Cards) <- ask
+    let cards = filter (\c -> rarity c == r && collectible c) . Map.findWithDefault [] "enUS" $ cards'
+    if length cards == 0 then
+        sendMessage $ Message 0 vid "Something wrong happened" [] []
+    else do
+        num <- liftIO $ randomRIO (0, length cards - 1)
+        execute vid (CardRequest $ Message 0 vid ("[[" ++ name (cards !! num) ++ "]]") [] [])
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
@@ -138,7 +152,7 @@ getCardSound st c = do
     mbAudio <- liftIO $ query acid (GetAudio audiouid)
     pid <- case if isNotFound c then Just "" else mbAudio of
         Just x -> return x
-        Nothing -> do 
+        Nothing -> do
             url <- soundURL <$> get
             let filenames :: [String]
                 filenames = do

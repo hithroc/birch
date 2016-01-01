@@ -1,4 +1,4 @@
-module Card (module X, searchBy, exactSearchBy, MonadCardsDB, printCards, priority, processCard) where
+module Card (module X, searchBy, exactSearchBy, MonadCardsDB, printCards, priority, processCard, Cards) where
 
 import Card.Parser as X
 import Card.Type as X

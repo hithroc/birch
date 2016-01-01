@@ -23,7 +23,7 @@ data Rarity
     | Rare
     | Epic
     | Legendary
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)
 data Race
     = Mech
     | Murloc
@@ -32,7 +32,7 @@ data Race
     | Beast
     | Pirate
     | Dragon
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)
 data PlayerClass
     = Neutral
     | Druid
@@ -45,7 +45,7 @@ data PlayerClass
     | Warrior
     | Warlock
     | Dream
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)
 
 data Card
     = Minion
