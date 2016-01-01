@@ -17,6 +17,7 @@ import CardPictureDB
 import AudioDB
 import Control.Lens
 import System.Random
+import System.Time.Utils (renderSecs)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
 import qualified Control.Exception as E
@@ -107,7 +108,7 @@ execute vid Quote = do
                     modify (\d -> d { quoteCooldown = Map.insert vid curtime cooldowns })
                     sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
             _ -> execute vid Quote
-    else sendMessage $ Message 0 vid ("You have to wait another " ++ show (truncate $ cd - diff) ++ " seconds before you can fetch next quote") [] []
+    else sendMessage $ Message 0 vid ("You have to wait another " ++ renderSecs (truncate $ cd - diff) ++ " before you can fetch another quote") [] []
 
 execute vid Update = withPermission vid $ do
     updateSets
