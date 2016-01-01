@@ -15,7 +15,7 @@ data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts
 type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
 
 data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: Integer }
-    deriving (Show, Eq, Ord)
+    deriving (Show, Ord)
 data VKUser = VKUser ID String String
     deriving Show
 
@@ -56,6 +56,9 @@ data Photo = Photo Integer Integer
     deriving Show
 data PhotoResponse = PhotoResponse Value
     deriving Show
+
+instance Eq ID where
+    (==) a b = userID a == userID b
 
 
 instance FromJSON LongPollServer where
