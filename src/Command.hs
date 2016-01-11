@@ -31,6 +31,7 @@ data Command
     | Reload
     | Quote
     | Thogar
+    | Tectus
     | Update
     | CardCraft Rarity
     | CardRequest Message
@@ -46,6 +47,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("quote":_) -> Quote
         Just ("update":_) -> Update
         Just ("thogar":_) -> Thogar
+        Just ("tectus":_) -> Tectus
         Just (["which","legendary","to","craft"]) -> CardCraft Legendary
         Just (["which","epic","to","craft"]) -> CardCraft Epic
         Just (["which","rare","to","craft"]) -> CardCraft Rare
@@ -134,6 +136,21 @@ execute vid (CardCraft r) = do
     else do
         num <- liftIO $ randomRIO (0, length cards - 1)
         execute vid (CardRequest $ Message 0 vid ("[[" ++ name (cards !! num) ++ "]]") [] [])
+
+execute vid Tectus = withPermission vid $ do
+    let quoteTectus 0 = sendMessage $ Message 0 vid "Even the mountain... falls..." [] []
+        quoteTectus i = do
+            r <- liftIO $ randomRIO (1, 7)
+            sendMessage $ Message 0 vid ((concat $ replicate r "RIIII") ++ "SE MOUNTAINS") [] []
+            liftIO $ threadDelay 2000000
+            quoteTectus (i-1)
+    sendMessage $ Message 0 vid "What is this?!..." [] []
+    liftIO $ threadDelay 2000000
+    sendMessage $ Message 0 vid "RISE MOUNTAINS" [] []
+    liftIO $ threadDelay 2000000
+    sendMessage $ Message 0 vid "RISE MOUNTAINS" [] []
+    liftIO $ threadDelay 2000000
+    quoteTectus 4
 
 execute vid Thogar = withPermission vid $ do
     let quotes = ["Redball incoming!"
