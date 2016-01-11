@@ -8,6 +8,8 @@ import Data.List
 import Data.Time.Clock
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
+import Control.Concurrent (threadDelay)
+import Control.Concurrent.STM
 import System.Log.Logger
 import Data.Aeson
 import Data.Char
@@ -28,6 +30,7 @@ data Command
     = Version
     | Reload
     | Quote
+    | Debug
     | Update
     | CardCraft Rarity
     | CardRequest Message
@@ -42,6 +45,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("reload":_) -> Reload
         Just ("quote":_) -> Quote
         Just ("update":_) -> Update
+        Just ("debug":_) -> Debug
         Just (["which","legendary","to","craft"]) -> CardCraft Legendary
         Just (["which","epic","to","craft"]) -> CardCraft Epic
         Just (["which","rare","to","craft"]) -> CardCraft Rare
@@ -62,6 +66,14 @@ withPermission vid f = do
     else sendMessage $ Message 0 vid ("You have no permission to execute that command") [] []
 
 prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
+
+executeIO :: TVar VKData -> TVar Config -> Cards -> ID -> Command -> IO ()
+executeIO tvd tcfg cs id command =  do
+    vkdata <- atomically $ readTVar tvd
+    cfg <- atomically $ readTVar tcfg
+    ((_,vkdata'),cfg') <- runStateT (runStateT (runReaderT (execute id command) cs) vkdata) cfg
+    atomically $ writeTVar tcfg cfg'
+    atomically $ writeTVar tvd vkdata'
 
 execute :: (MonadVK m, MonadCardsDB m) => ID -> Command -> m ()
 execute vid Version = sendMessage (Message 0 vid ("Current version: " ++ version) [] [])
@@ -122,6 +134,11 @@ execute vid (CardCraft r) = do
     else do
         num <- liftIO $ randomRIO (0, length cards - 1)
         execute vid (CardRequest $ Message 0 vid ("[[" ++ name (cards !! num) ++ "]]") [] [])
+
+execute vid Debug = withPermission vid $ do
+    execute vid Quote
+    liftIO $ threadDelay 3000000
+    execute vid Debug
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 

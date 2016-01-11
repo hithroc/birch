@@ -19,6 +19,7 @@ import Control.Lens
 import VK
 import VK.Users
 import Control.Concurrent
+import Control.Concurrent.STM
 import Control.Exception as E
 import System.Exit
 import Data.List
@@ -89,5 +90,14 @@ loop = do
     (VKUser _ uname _) <- logUser <$> get
     msgs <- getLongPoll
     commands <- traverse (parseCommand) msgs
-    traverse_ (\(x, y) -> execute (uid x) y) $ zip msgs commands
+    cfg <- get
+    vkdata <- get
+    cards <- ask
+    tcfg <- liftIO . atomically $ newTVar cfg
+    tvkdata <- liftIO . atomically $ newTVar vkdata
+    traverse_ (\(x, y) -> liftIO . void . forkIO $ executeIO tvkdata tcfg cards (uid x) y) $ zip msgs commands
+    cfg' <- liftIO . atomically $ readTVar tcfg
+    vkdata' <- liftIO . atomically $ readTVar tvkdata
+    modify (const cfg')
+    modify (const vkdata')
     loop
