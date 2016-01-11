@@ -30,7 +30,7 @@ data Command
     = Version
     | Reload
     | Quote
-    | Debug
+    | Thogar
     | Update
     | CardCraft Rarity
     | CardRequest Message
@@ -45,7 +45,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("reload":_) -> Reload
         Just ("quote":_) -> Quote
         Just ("update":_) -> Update
-        Just ("debug":_) -> Debug
+        Just ("thogar":_) -> Thogar
         Just (["which","legendary","to","craft"]) -> CardCraft Legendary
         Just (["which","epic","to","craft"]) -> CardCraft Epic
         Just (["which","rare","to","craft"]) -> CardCraft Rare
@@ -135,10 +135,46 @@ execute vid (CardCraft r) = do
         num <- liftIO $ randomRIO (0, length cards - 1)
         execute vid (CardRequest $ Message 0 vid ("[[" ++ name (cards !! num) ++ "]]") [] [])
 
-execute vid Debug = withPermission vid $ do
-    execute vid Quote
-    liftIO $ threadDelay 3000000
-    execute vid Debug
+execute vid Thogar = withPermission vid $ do
+    let quotes = ["Redball incoming!"
+                 ,"Send'er on down the line!"
+                 ,"Faster! Bat the stack off her!"
+                 ,"Track one."
+                 ,"Live iron on track one!"
+                 ,"Track two!"
+                 ,"Incoming on two."
+                 ,"Track three."
+                 ,"Track three inbound."
+                 ,"Track four."
+                 ,"Inbound on four."
+                 ,"Express, coming through."
+                 ,"Ah - reinforcements."
+                 ,"Reinforcements, right on time."
+                 ,"Troop train - inbound!"
+                 ,"Here they come - hit the grit, boys!"
+                 ,"Coming in hot."
+                 ,"Here come the boomers!"
+                 ,"Here's my artillery."
+                 ,"The command car is here."
+                 ,"Here comes the brass."
+                 ,"Trains inbound!"
+                 ,"Double time."
+                 ,"Clear the tracks!"
+                 ,"Let's step up the pace!"
+                 ,"You're just in time for the rush!"
+                 ,"I'm not impressed - more trains are inbound!"
+                 ,"I have a schedule to keep!"
+                 ,"You're running out of time."
+                 ]
+        quoteThogar 0 = sendMessage $ Message 0 vid "That wasn't on the... schedule..." [] []
+        quoteThogar i = do
+            r <- liftIO $ randomRIO (1,length quotes)
+            sendMessage $ Message 0 vid (quotes !! r) [] []
+            liftIO $ threadDelay 5000000
+            quoteThogar (i-1)
+    sendMessage $ Message 0 vid "Blackhand won't tolerate anymore delays." [] []
+    liftIO $ threadDelay 2000000
+    quoteThogar 10
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
