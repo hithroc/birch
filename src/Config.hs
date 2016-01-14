@@ -17,7 +17,6 @@ data Config = Config
     , soundURL :: String
     , jsonURL :: String
     , dataFol :: String
-    , locales :: [String]
     , aliases :: Aliases
     , admins :: [Integer]
     , bannedForQuote :: [Integer]
@@ -33,7 +32,6 @@ instance FromJSON Config where
                         <*> v .: "soundURL"
                         <*> v .: "jsonURL"
                         <*> v .: "data"
-                        <*> v .: "locales"
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
                         <*> v .: "admins"
                         <*> v .: "quotebanned"

@@ -24,34 +24,53 @@ data SoundType
     deriving (Ord, Read, Show, Eq)
 
 data Rarity
-    = Free
-    | Token
-    | Common
-    | Rare
-    | Epic
-    | Legendary
+    = FREE
+    | TOKEN
+    | COMMON
+    | RARE
+    | EPIC
+    | LEGENDARY
     deriving (Read, Show, Eq)
 data Race
-    = Mech
-    | Murloc
-    | Demon
-    | Totem
-    | Beast
-    | Pirate
-    | Dragon
+    = INVALID
+    | BLOODELF
+    | DRAENEI
+    | DWARF
+    | GNOME
+    | GOBLIN
+    | HUMAN
+    | NIGHTELF
+    | ORC
+    | TAUREN
+    | TROLL
+    | UNDEAD
+    | WORGEN
+    | GOBLIN2
+    | MURLOC
+    | DEMON
+    | SCOURGE
+    | MECHANICAL
+    | ELEMENTAL
+    | OGRE
+    | BEAST
+    | TOTEM
+    | NERUBIAN
+    | PIRATE
+    | DRAGON
     deriving (Read, Show, Eq)
 data PlayerClass
-    = Neutral
-    | Druid
-    | Hunter
-    | Mage
-    | Paladin
-    | Priest
-    | Rogue
-    | Shaman
-    | Warrior
-    | Warlock
-    | Dream
+    = NEUTRAL
+    | DRUID
+    | HUNTER
+    | MAGE
+    | PALADIN
+    | PRIEST
+    | ROGUE
+    | SHAMAN
+    | WARRIAR
+    | WARLOCK
+    | DREAM
+    | DEATHKNIGHT
     deriving (Read, Show, Eq)
 
 data Card
@@ -123,7 +142,7 @@ data Card
     deriving Show
 
 notFoundCard :: Card
-notFoundCard = NotFound "" (Localized $ Map.empty) Neutral False Free
+notFoundCard = NotFound "" (Localized $ Map.empty) NEUTRAL False FREE
 
 isMinion :: Card -> Bool
 isMinion (Minion {}) = True
@@ -159,6 +178,9 @@ unlocalize l (Localized v) = case Map.lookup l v of
     Nothing -> case Map.lookup (Locale "enUS") v of
         Just v' -> v'
         Nothing -> "Unknown Locale Error"
+
+locToMap :: Localized -> Map.Map Locale String
+locToMap (Localized l) = l 
 
 printCard :: Locale -> Card -> String
 printCard l card@(Minion {}) = ""
@@ -210,13 +232,14 @@ instance FromJSON Card where
         rarity'  <- v .:? "rarity"
         playerClass' <- v .:? "playerClass"
         text' <- v .:? "text"
-        flavor' <- v .:? "flavor"
+        --flavor' <- v .:? "flavor"
         collectible' <- v .:? "collectible"
-        let playerClass'' = fromMaybe Neutral (playerClass' >>= readMaybe)
-            rarity'' = fromMaybe Free (maybe (Just Token) readMaybe rarity')
+        let playerClass'' = fromMaybe NEUTRAL (playerClass' >>= readMaybe)
+            rarity'' = fromMaybe FREE (maybe (Just TOKEN) readMaybe rarity')
             collectible'' = maybe False id collectible'
+            flavor' = Nothing
         case cardType of
-            "Minion" -> do
+            "MINION" -> do
                 cost' <- v .: "cost"
                 attack' <- v .: "attack"
                 health' <- v .: "health"
@@ -234,7 +257,7 @@ instance FromJSON Card where
                     , flavor = flavor'
                     , collectible = collectible''
                     }
-            "Spell" -> do
+            "SPELL" -> do
                 cost' <- v .: "cost"
                 return Spell
                     { cardID = cid
@@ -246,7 +269,7 @@ instance FromJSON Card where
                     , flavor = flavor'
                     , collectible = collectible''
                     }
-            "Hero Power" -> do
+            "HERO_POWER" -> do
                 cost' <- v .:? "cost"
                 return HeroPower
                     { cardID = cid
@@ -257,7 +280,7 @@ instance FromJSON Card where
                     , text = text'
                     , collectible = collectible''
                     }
-            "Hero" -> do
+            "HERO" -> do
                 health' <- v .: "health"
                 race' <- v .:? "race"
                 return Hero
@@ -271,7 +294,7 @@ instance FromJSON Card where
                     , flavor = flavor'
                     , collectible = collectible''
                     }
-            "Weapon" -> do
+            "WEAPON" -> do
                 durability' <- v .: "durability"
                 attack' <- v .: "attack"
                 cost' <- v .: "cost"

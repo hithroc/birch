@@ -48,10 +48,10 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("update":_) -> Update
         Just ("thogar":_) -> Thogar
         Just ("tectus":_) -> Tectus
-        Just (["which","legendary","to","craft"]) -> CardCraft Legendary
-        Just (["which","epic","to","craft"]) -> CardCraft Epic
-        Just (["which","rare","to","craft"]) -> CardCraft Rare
-        Just (["which","common","to","craft"]) -> CardCraft Common
+        Just (["which","legendary","to","craft"]) -> CardCraft LEGENDARY
+        Just (["which","epic","to","craft"]) -> CardCraft EPIC
+        Just (["which","rare","to","craft"]) -> CardCraft RARE
+        Just (["which","common","to","craft"]) -> CardCraft COMMON
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
@@ -92,15 +92,16 @@ execute vid (CardRequest msg) = do
     let parsedCards = parseCards . message $ msg
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
     filtCards <- traverse (processCard prio) aliasedCards
-    pattachments <- traverse (getCardImage . snd) filtCards
-    let audioget (tags, card) = do
-            let action x = case x of
-                    Snd st -> getCardSound st card
-                    _ -> return ""
-            traverse (action) $ S.toList tags
-    aattachments <- concat <$> traverse (audioget) filtCards
-    let retmsg = Message 0 vid (unlines . map (printCard . snd) $ filtCards) (pattachments ++ aattachments) []
-    sendMessage retmsg
+    unless (null filtCards) $ do
+        pattachments <- traverse ((uncurry getCardImage) . snd) filtCards
+        let audioget (tags, (loc, card)) = do
+                let action x = case x of
+                        Snd st -> getCardSound loc st card
+                        _ -> return ""
+                traverse (action) $ S.toList tags
+        aattachments <- concat <$> traverse (audioget) filtCards
+        let retmsg = Message 0 vid (unlines . map ((uncurry printCard) . snd) $ filtCards) (pattachments ++ aattachments) []
+        sendMessage retmsg
 
 execute vid Quote = do
     cooldowns <- quoteCooldown <$> get
@@ -125,23 +126,23 @@ execute vid Quote = do
     else sendMessage $ Message 0 vid ("You have to wait another " ++ renderSecs (truncate $ cd - diff) ++ " before you can fetch another quote") [] []
 
 execute vid Update = withPermission vid $ do
-    updateSets
-    sendMessage $ Message 0 vid "Sets updated!" [] []
+    downloadSet
+    sendMessage $ Message 0 vid "Database updated!" [] []
 
 execute vid (CardCraft r) = do
     (cards' :: Cards) <- ask
-    let cards = filter (\c -> rarity c == r && collectible c) . Map.findWithDefault [] "enUS" $ cards'
+    let cards = filter (\c -> rarity c == r && collectible c) $ cards'
     if length cards == 0 then
         sendMessage $ Message 0 vid "Something wrong happened" [] []
     else do
         num <- liftIO $ randomRIO (0, length cards - 1)
-        execute vid (CardRequest $ Message 0 vid ("[[" ++ name (cards !! num) ++ "]]") [] [])
+        execute vid (CardRequest $ Message 0 vid ("[[" ++ (unlocalize (Locale "enUS") $ name (cards !! num)) ++ "]]") [] [])
 
 execute vid Tectus = withPermission vid $ do
     let quoteTectus 0 = sendMessage $ Message 0 vid "Even the mountain... falls..." [] []
         quoteTectus i = do
             r <- liftIO $ randomRIO (1, 7)
-            sendMessage $ Message 0 vid ((concat $ replicate r "RIIII") ++ "SE MOUNTAINS") [] []
+            sendMessage $ Message 0 vid ((concat $ replicate r "RI-") ++ "RISE MOUNTAINS") [] []
             liftIO $ threadDelay 2000000
             quoteTectus (i-1)
     sendMessage $ Message 0 vid "What is this?!..." [] []
@@ -195,11 +196,10 @@ execute vid Thogar = withPermission vid $ do
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
-getCardImage :: (MonadVK m, MonadCardsDB m) => Card -> m (String)
-getCardImage c = do
+getCardImage :: (MonadVK m, MonadCardsDB m) => Locale -> Card -> m (String)
+getCardImage (Locale loc) c = do
     url <- imageURL <$> get
-    let (Locale loc) = locale c
-        imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
+    let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
     acid <- liftIO $ openLocalState (CardPics Map.empty)
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
@@ -211,7 +211,7 @@ getCardImage c = do
                     unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
                     return pid
                 Left e -> do
-                    liftIO . infoM rootLoggerName $ "No image for " ++ name c ++ " found"
+                    liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
                     return ""
         Just pid -> do
             return pid
@@ -224,10 +224,9 @@ downloadFile url = do
     r <- (Right <$> W.get url) `E.catch` \(e :: E.SomeException) ->  return (Left e)
     return (fmap (\x -> x ^. W.responseBody) r)
 
-getCardSound :: (MonadVK m, MonadCardsDB m) => SoundType -> Card -> m (String)
-getCardSound st c = do
-    let (Locale loc) = locale c
-        audiouid = show st ++ loc ++ cardID c
+getCardSound :: (MonadVK m, MonadCardsDB m) => Locale -> SoundType -> Card -> m (String)
+getCardSound (Locale loc) st c = do
+    let audiouid = show st ++ loc ++ cardID c
     acid <- liftIO $ openLocalState (AudioIds Map.empty)
     mbAudio <- liftIO $ query acid (GetAudio audiouid)
     pid <- case if isNotFound c then Just "" else mbAudio of
@@ -250,9 +249,9 @@ getCardSound st c = do
             d <- liftIO $ downloader audiourls
             p <- case d of
                 Nothing -> do
-                    liftIO . infoM rootLoggerName $ "No sound file for " ++ name c ++ ":" ++ show st ++ " found"
+                    liftIO . infoM rootLoggerName $ "No sound file for " ++ unlocalize (Locale loc) (name c) ++ ":" ++ show st ++ " found"
                     return ""
-                Just rawdata -> uploadAudio (name c) (show st) rawdata
+                Just rawdata -> uploadAudio (unlocalize (Locale loc) $ name c) (show st) rawdata
             unless (null p) . liftIO $ update acid (InsertAudio audiouid p)
             return p
     liftIO $ closeAcidState acid

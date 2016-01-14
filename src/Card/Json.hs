@@ -11,59 +11,23 @@ import Control.Lens
 import Config
 import Card.Type
 import qualified Data.ByteString.Lazy as BS
+import Debug.Trace
 import System.Log.Logger
 
-getLatestVersion :: (MonadConfig m, MonadIO m) => m (Maybe String)
-getLatestVersion = do
-    url <- jsonURL <$> get
-    r <- liftIO . W.get $ url ++ "version.json"
-    let o = decode $ r ^. W.responseBody :: Maybe Value
-    return (o ^. key "version")
-
-getVersion :: (MonadConfig m, MonadIO m) => m (Maybe String)
-getVersion = do
-    folder <- dataFol <$> get
-    o <- liftIO $ decode <$> BS.readFile (folder ++ "version.json")
-    return (o ^. key "version")
-
-downloadSets :: (MonadConfig m, MonadIO m) => m ()
-downloadSets = do
-    locs <- locales <$> get
-    liftIO $ infoM rootLoggerName ("Downloading card info for " ++ show locs)
-    traverse_ downloadSet locs
-
-downloadSet :: (MonadConfig m, MonadIO m) => String -> m ()
-downloadSet loc = do
+downloadSet :: (MonadConfig m, MonadIO m) => m ()
+downloadSet = do
+    liftIO $ infoM rootLoggerName ("Downloading cards.json...")
     url <- jsonURL <$> get
     folder <- dataFol <$> get
-    r <- liftIO . W.get $ url ++ filename
-    liftIO $ BS.writeFile (folder ++ filename) (r ^. W.responseBody)
-    liftIO $ infoM rootLoggerName ("Downloaded " ++ filename)
-    where
-        filename = "AllSets." ++ loc ++ ".json"
+    r <- liftIO . W.get $ url
+    liftIO $ BS.writeFile (folder ++ "cards.json") (r ^. W.responseBody)
+    liftIO $ infoM rootLoggerName ("Downloaded cards.json")
 
-updateSets :: (MonadConfig m, MonadIO m) => m ()
-updateSets = do
-    last' <- getLatestVersion
-    ver' <- getVersion
-    case zipMaybe last' ver' of
-        Nothing -> liftIO $ warningM "main.cards" "Failed to fetch versions"
-        Just (l, v) -> when (v /= l) $ do
-                liftIO $ infoM rootLoggerName $ "The local cards version (" ++ v  ++ ") in different from server's verion (" ++ l ++ ")"
-                downloadSets
-                url <- jsonURL <$> get
-                folder <- dataFol <$> get
-                r <- liftIO . W.get $ url ++ "version.json"
-                liftIO $ BS.writeFile (folder ++ "version.json") (r ^. W.responseBody)
-    where
-        zipMaybe Nothing _ = Nothing
-        zipMaybe _ Nothing = Nothing
-        zipMaybe (Just a) (Just b) = Just (a,b)
-
-readCards :: (MonadConfig m, MonadIO m) => Locale -> m [Card]
-readCards (Locale loc) = do
+readCards :: (MonadConfig m, MonadIO m) => m [Card]
+readCards = do
     folder <- dataFol <$> get
-    o <- liftIO $ decode <$> BS.readFile (folder ++ "AllSets." ++ loc ++ ".json")
-    let c = fmap (mapMaybe (decode . encode)) (o ^. traverseObject :: Maybe [Value])
-    return $ map (\x -> x { locale = Locale loc, text = text x}) $ fromMaybe [] c
-readCards Unknown = readCards $ Locale "enUS"
+    (o :: Maybe [Value]) <- liftIO $ decode <$> BS.readFile (folder ++ "cards.json")
+    let c :: [Card]
+        c = fromMaybe [] $ fmap (mapMaybe (decode . encode)) o
+    liftIO . infoM rootLoggerName $ "Loaded card database of total " ++ show (length c) ++ " cards"
+    return c

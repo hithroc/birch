@@ -40,11 +40,9 @@ main = do
             cfg <- loadConfig "config.json"
             let initCfg :: (MonadConfig m, MonadIO m) => m ()
                 initCfg = do
-                    updateSets
-                    locs <- locales <$> get
-                    cards <- traverse (readCards . Locale) locs
-                    let c = Map.fromList $ zip locs cards
-                    evalStateT (runReaderT initVK c) defaultVKData
+                    --downloadSet
+                    cards <- readCards
+                    evalStateT (runReaderT initVK cards) defaultVKData
                 initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
                 initVK = do
                     login

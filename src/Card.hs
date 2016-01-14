@@ -11,15 +11,35 @@ import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 import qualified Data.Set as S
 
-type Cards = Map.Map String [Card]
+type Cards = [Card]
 
-printCards :: Cards -> String
-printCards cs = unlines . map printCard . concatMap snd $ Map.toList cs
+priority :: [a -> Bool] -> [a] -> a
+priority [] xs = head xs
+priority (p:ps) xs = if null f then priority ps xs else priority ps f
+    where
+        f = filter p xs
+
+printCards :: Locale -> Cards -> String
+printCards l cs = unlines . map (printCard l) $ cs
 
 type MonadCardsDB = MonadReader Cards
 
 searchBy' :: (Card -> String) -> String -> [Card] -> [Card]
 searchBy' f n = filter $ \c -> map toUpper n `isInfixOf` map toUpper (f c)
+
+searchLocalized' :: (Card -> Localized) -> String -> [Card] -> [(Locale, Card)]
+searchLocalized' f n cards = matching
+    where
+        loclist c = Map.toList . locToMap $ f c
+        comp x = map toUpper n `isInfixOf` map toUpper x
+        complocs :: [(Locale, String)] -> [Bool]
+        complocs = map (\(loc, n') -> comp n')
+        prio = priority [(==(Locale "ruRU")),(==(Locale "enUS"))] . map snd
+        matching :: [(Locale, Card)]
+        matching = map (\(x,y) -> (prio $ filter fst (zip (complocs x) (map fst x)), y)) 
+                 . filter (\(x, _) -> and $ complocs x) 
+                 . map (\c -> (loclist c, c)) 
+                 $ cards
 
 exactSearchBy' :: (Card -> String) -> String -> [Card] -> [Card]
 exactSearchBy' f n = filter $ \c -> n == (f c)
@@ -27,36 +47,31 @@ exactSearchBy' f n = filter $ \c -> n == (f c)
 searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
 searchBy f n = do
     cards <- ask
-    return . Map.map (searchBy' f n) $ cards
+    return . searchBy' f n $ cards
+
+searchLocalized :: MonadCardsDB m => (Card -> Localized) -> String -> m [(Locale, Card)]
+searchLocalized f n = do
+    cards <- ask
+    return . searchLocalized' f n $ cards
 
 exactSearchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
 exactSearchBy f n = do
     cards <- ask
-    return . Map.map (exactSearchBy' f n) $ cards
+    return . exactSearchBy' f n $ cards
 
-priority :: [a] -> [a -> Bool] -> a
-priority xs [] = head xs
-priority xs (p:ps) = if null f then priority xs ps else priority f ps
-    where
-        f = filter p xs
 
-processTag :: MonadCardsDB m => CardTag -> Card -> m Card
-processTag (Loc (Locale l)) c = do
-    cards <- exactSearchBy cardID $ cardID c
-    case Map.lookup l cards >>= listToMaybe of
-        Nothing -> return c
-        Just c' -> return c'
-processTag _ c = return c
+processTag :: MonadCardsDB m => CardTag -> (Locale, Card) -> m (Locale, Card)
+processTag (Loc l) (_,c) = return (l,c)
+processTag _ x = return x
 
-processTags :: MonadCardsDB m => [CardTag] -> Card -> m Card
+processTags :: MonadCardsDB m => [CardTag] -> (Locale, Card) -> m (Locale, Card)
 processTags tags card = foldl (\a b -> a >>= processTag b) (return card) tags
 
-processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, String) -> m (S.Set CardTag, Card)
+processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, String) -> m (S.Set CardTag, (Locale, Card))
 processCard prio (tags, n) = do
-    fc <- searchBy name n
-    let cards = concatMap snd . Map.toList $ fc
+    cards <- searchLocalized name n
     if null cards then
-        return $ (tags, notFoundCard { name = n })
+        return $ (tags, (Locale "enUS", notFoundCard { name = Localized $ Map.singleton (Locale "enUS") n }))
     else do
-        let resultcard = priority cards prio
+        let resultcard = priority (map (.snd) prio) cards
         (\x -> (tags, x)) <$> processTags (S.toList tags) resultcard
