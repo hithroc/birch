@@ -37,7 +37,7 @@ searchLocalized' f n cards = matching
         prio = priority [(==(Locale "ruRU")),(==(Locale "enUS"))] . map snd
         matching :: [(Locale, Card)]
         matching = map (\(x,y) -> (prio $ filter fst (zip (complocs x) (map fst x)), y)) 
-                 . filter (\(x, _) -> and $ complocs x) 
+                 . filter (\(x, _) -> or $ complocs x) 
                  . map (\c -> (loclist c, c)) 
                  $ cards
 
