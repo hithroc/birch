@@ -41,7 +41,8 @@ sendMessage msg = do
                 [("forward_messages", concat . intersperse "," . map show . forwarded $ msg)]
             else
                 []
-    _ <- dispatch "messages.send" withfwd
+    r <- dispatch "messages.send" withfwd
+    liftIO . infoM rootLoggerName $ "Message sent! Response was: " ++ show r
     return ()
 
 intToID :: Integer -> Map.Map String LongPollValue -> ID

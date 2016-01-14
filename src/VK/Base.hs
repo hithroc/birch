@@ -19,7 +19,9 @@ import qualified Data.Map as Map
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
+    infoM rootLoggerName $ "Dispatching " ++ meth ++ " with " ++ show args
     r <- W.getWith opts url `E.catch` handler
+    infoM rootLoggerName $ "Dispatched!"
     return $ r ^. W.responseBody
     where
         url = "https://api.vk.com/method/" ++ meth
