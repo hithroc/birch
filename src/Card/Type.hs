@@ -6,10 +6,17 @@ import Data.Aeson
 import Data.Maybe
 import Text.Read
 import Control.Monad
+import qualified Data.Text as T
+import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HashMap
 
 data Locale = Locale String
             | Unknown
     deriving (Read, Show, Eq, Ord)
+
+data Localized = Localized (Map.Map Locale String)
+    deriving (Read, Show, Eq, Ord)
+
 data SoundType
     = Play
     | Attack
@@ -50,79 +57,73 @@ data PlayerClass
 data Card
     = Minion
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , rarity :: Rarity
         , playerClass :: PlayerClass
         , collectible :: Bool
-        , locale :: Locale
         , cost :: Int
         , attack :: Int
         , health :: Int
         , race :: Maybe Race
-        , text :: Maybe String
-        , flavor :: Maybe String
+        , text :: Maybe Localized
+        , flavor :: Maybe Localized
         }
     | Spell
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , rarity :: Rarity
         , playerClass :: PlayerClass
         , collectible :: Bool
-        , locale :: Locale
         , cost :: Int
-        , text :: Maybe String
-        , flavor :: Maybe String
+        , text :: Maybe Localized
+        , flavor :: Maybe Localized
         }
     | HeroPower
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , rarity :: Rarity
         , playerClass :: PlayerClass
-        , locale :: Locale
         , collectible :: Bool
         , hpCost :: Maybe Int
-        , text :: Maybe String
+        , text :: Maybe Localized
         }
     | Hero
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , rarity :: Rarity
         , playerClass :: PlayerClass
-        , locale :: Locale
         , collectible :: Bool
         , health :: Int
         , race :: Maybe Race
-        , text :: Maybe String
-        , flavor :: Maybe String
+        , text :: Maybe Localized
+        , flavor :: Maybe Localized
         }
     | Weapon
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , playerClass :: PlayerClass
         , collectible :: Bool
-        , locale :: Locale
         , rarity :: Rarity
         , cost :: Int
         , durability :: Int
         , attack :: Int
-        , text :: Maybe String
-        , flavor :: Maybe String
+        , text :: Maybe Localized
+        , flavor :: Maybe Localized
         }
     | Enchantment
         { cardID :: String
         }
     | NotFound
         { cardID :: String
-        , name :: String
+        , name :: Localized
         , playerClass :: PlayerClass
         , collectible :: Bool
-        , locale :: Locale
         , rarity :: Rarity
         }
     deriving Show
 
 notFoundCard :: Card
-notFoundCard = NotFound "" "" Neutral False (Locale "enUS") Token
+notFoundCard = NotFound "" (Localized $ Map.empty) Neutral False Free
 
 isMinion :: Card -> Bool
 isMinion (Minion {}) = True
@@ -152,38 +153,55 @@ isNotFound :: Card -> Bool
 isNotFound (NotFound {}) = True
 isNotFound _ = False
 
-printCard :: Card -> String
-printCard card@(Minion {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Minion"
+unlocalize :: Locale -> Localized -> String
+unlocalize l (Localized v) = case Map.lookup l v of
+    Just v' -> v'
+    Nothing -> case Map.lookup (Locale "enUS") v of
+        Just v' -> v'
+        Nothing -> "Unknown Locale Error"
+
+printCard :: Locale -> Card -> String
+printCard l card@(Minion {}) = ""
+    ++ unlocalize l (name card) ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Minion"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
-    ++ maybe "" ("\n"++) (text card)
+    ++ maybe "" (("\n"++).unlocalize l) (text card)
 
-printCard card@(Spell {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Spell"
+printCard l card@(Spell {}) = ""
+    ++ unlocalize l (name card) ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Spell"
     ++ "\n(" ++ show (cost card) ++ ")"
-    ++ maybe "" ("\n"++) (text card)
+    ++ maybe "" (("\n"++).unlocalize l) (text card)
 
-printCard card@(HeroPower {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero Power"
+printCard l card@(HeroPower {}) = ""
+    ++ unlocalize l (name card) ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero Power"
     ++ "\n(" ++ maybe "No cost" show (hpCost card) ++ ")"
-    ++ maybe "" ("\n"++) (text card)
+    ++ maybe "" (("\n"++).unlocalize l) (text card)
 
-printCard card@(Hero {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero"
+printCard l card@(Hero {}) = ""
+    ++ unlocalize l (name card) ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card) ++ " Hero"
     ++ "\nHP: " ++ show (health card)
     ++ maybe "" (("\n"++) . show) (race card)
-    ++ maybe "" ("\n"++) (text card)
+    ++ maybe "" (("\n"++).unlocalize l) (text card)
 
-printCard card@(Weapon {}) = ""
-    ++ name card ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card)  ++ " Weapon"
+printCard l card@(Weapon {}) = ""
+    ++ unlocalize l (name card) ++ " - " ++ show (rarity card) ++ " " ++ show (playerClass card)  ++ " Weapon"
     ++ "\n(" ++ show (cost card) ++ ") " ++ show (attack card) ++ "/" ++ show (durability card)
-    ++ maybe "" ("\n"++) (text card)
+    ++ maybe "" (("\n"++).unlocalize l) (text card)
 
-printCard card@(NotFound {}) = "No card named \"" ++ name card ++ "\" found"
+printCard l card@(NotFound {}) = "No card named \"" ++ unlocalize l (name card) ++ "\" found"
 
-printCard _ = "Unsupported type of card"
+printCard _ _ = "Unsupported type of card"
 
+instance FromJSON Localized where
+    parseJSON (Object v) = do
+        let l = HashMap.toList v
+        let parseLoc (k,av) = do
+                (v' :: String) <- parseJSON av
+                return (Locale $ T.unpack k, v')
+        fmap (Localized . Map.fromList) $ traverse (parseLoc) l
+    parseJSON _ = mzero
+            
+        
 instance FromJSON Card where
     parseJSON (Object v) = do
         cid      <- v .: "id"
@@ -215,7 +233,6 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
-                    , locale = Unknown
                     }
             "Spell" -> do
                 cost' <- v .: "cost"
@@ -228,7 +245,6 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
-                    , locale = Unknown
                     }
             "Hero Power" -> do
                 cost' <- v .:? "cost"
@@ -240,7 +256,6 @@ instance FromJSON Card where
                     , playerClass = playerClass''
                     , text = text'
                     , collectible = collectible''
-                    , locale = Unknown
                     }
             "Hero" -> do
                 health' <- v .: "health"
@@ -255,7 +270,6 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
-                    , locale = Unknown
                     }
             "Weapon" -> do
                 durability' <- v .: "durability"
@@ -272,7 +286,6 @@ instance FromJSON Card where
                     , text = text'
                     , flavor = flavor'
                     , collectible = collectible''
-                    , locale = Unknown
                     }
             _ -> mzero
     parseJSON _ = mzero
