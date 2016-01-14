@@ -67,7 +67,7 @@ data PlayerClass
     | PRIEST
     | ROGUE
     | SHAMAN
-    | WARRIAR
+    | WARRIOR
     | WARLOCK
     | DREAM
     | DEATHKNIGHT
