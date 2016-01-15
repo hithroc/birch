@@ -49,6 +49,7 @@ data LongPollValue
     deriving (Ord, Eq)
 
 data LongPollResponse = LongPollResponse [[LongPollValue]] Integer
+data ErrorResponse = ErrorResponse Int String
 
 data PhotoServ = PhotoServ String
 data UploadResponse = UploadResponse Integer String String
@@ -131,3 +132,10 @@ instance FromJSON VKUser where
                 lastname <- o .: "last_name"
                 return $ VKUser (UserID userid) firstname lastname
     parseJSON _ = mzero
+
+instance FromJSON ErrorResponse where
+    parseJSON (Object v) = do
+        res <- v .: "error"
+        code <- res .: "error_code"
+        msg <- res .: "error_msg"
+        return $ ErrorResponse code msg
