@@ -6,6 +6,7 @@ import Data.Char
 import qualified Data.ByteString.Lazy as BS
 import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
+import UserManagment
 
 type Aliases = Map.Map String String
 
@@ -18,7 +19,7 @@ data Config = Config
     , jsonURL :: String
     , dataFol :: String
     , aliases :: Aliases
-    , admins :: [Integer]
+    , userperm :: UserPermissions
     , bannedForQuote :: [Integer]
     , quoteCD :: NominalDiffTime
     }
@@ -33,7 +34,7 @@ instance FromJSON Config where
                         <*> v .: "jsonURL"
                         <*> v .: "data"
                         <*> (Map.mapKeys (map toUpper) <$> v .: "aliases")
-                        <*> v .: "admins"
+                        <*> v .: "permissions"
                         <*> v .: "quotebanned"
                         <*> (fromInteger <$> v .: "quotecd")
     parseJSON _ = mzero

@@ -25,6 +25,7 @@ import qualified Data.Map as Map
 import qualified Control.Exception as E
 import qualified Network.Wreq as W
 import qualified Data.Set as S
+import UserManagment
 
 data Command
     = Version
@@ -32,6 +33,7 @@ data Command
     | Quote
     | Thogar
     | Tectus
+    | Status
     | Update
     | CardCraft Rarity
     | CardRequest Message
@@ -48,6 +50,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("update":_) -> Update
         Just ("thogar":_) -> Thogar
         Just ("tectus":_) -> Tectus
+        Just ("status":_) -> Status
         Just (["which","legendary","to","craft"]) -> CardCraft LEGENDARY
         Just (["which","epic","to","craft"]) -> CardCraft EPIC
         Just (["which","rare","to","craft"]) -> CardCraft RARE
@@ -55,17 +58,19 @@ parseCommand msg@(Message {message = msgtext}) = do
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
-checkPermission :: MonadVK m => ID -> m (Bool)
-checkPermission i = do
-    adm <- admins <$> get
-    return $ (userID i) `elem` adm
+checkPermission :: MonadVK m => Permission -> ID -> m (Maybe String)
+checkPermission perm i = do
+    (UserPermissions perms) <- userperm <$> get
+    let perm' = Map.findWithDefault User (userID i) perms
+    let msg = Map.findWithDefault "You don't have a permisison to execute that command" perm' permMsgs
+    return (if perm >= perm' then Nothing else Just msg)
 
-withPermission :: MonadVK m => ID -> m () -> m ()
-withPermission vid f = do
-    perm <- checkPermission vid
-    if perm
-    then f
-    else sendMessage $ Message 0 vid ("You have no permission to execute that command") [] []
+withPermission :: MonadVK m => Permission -> ID -> m () -> m ()
+withPermission perm vid f = do
+    msg <- checkPermission perm vid
+    case msg of
+        Nothing -> f
+        Just msg' -> sendMessage $ Message 0 vid msg' [] []
 
 prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
@@ -78,8 +83,8 @@ executeIO tvd tcfg cs id command =  do
     atomically $ writeTVar tvd vkdata'
 
 execute :: (MonadVK m, MonadCardsDB m) => ID -> Command -> m ()
-execute vid Version = sendMessage (Message 0 vid ("Current version: " ++ version) [] [])
-execute vid Reload = withPermission vid $ do
+execute vid Version = withPermission Everyone vid $ sendMessage (Message 0 vid ("Current version: " ++ version) [] [])
+execute vid Reload = withPermission Admin vid $ do
     cfg <- liftIO $ loadConfig "config.json"
     case cfg of
         Nothing -> sendMessage $ Message 0 vid "Failed to reload config" [] []
@@ -103,7 +108,7 @@ execute vid (CardRequest msg) = do
         let retmsg = Message 0 vid (unlines . map ((uncurry printCard) . snd) $ filtCards) (pattachments ++ aattachments) []
         sendMessage retmsg
 
-execute vid Quote = do
+execute vid Quote = withPermission User vid $ do
     cooldowns <- quoteCooldown <$> get
     curtime <- liftIO $ getCurrentTime
     cd <- quoteCD <$> get
@@ -125,11 +130,11 @@ execute vid Quote = do
             _ -> execute vid Quote
     else sendMessage $ Message 0 vid ("You have to wait another " ++ renderSecs (truncate $ cd - diff) ++ " before you can fetch another quote") [] []
 
-execute vid Update = withPermission vid $ do
+execute vid Update = withPermission Admin vid $ do
     downloadSet
     sendMessage $ Message 0 vid "Database updated!" [] []
 
-execute vid (CardCraft r) = do
+execute vid (CardCraft r) = withPermission User vid $ do
     (cards' :: Cards) <- ask
     let cards = filter (\c -> rarity c == r && collectible c) $ cards'
     if length cards == 0 then
@@ -138,7 +143,7 @@ execute vid (CardCraft r) = do
         num <- liftIO $ randomRIO (0, length cards - 1)
         execute vid (CardRequest $ Message 0 vid ("[[" ++ (unlocalize (Locale "enUS") $ name (cards !! num)) ++ "]]") [] [])
 
-execute vid Tectus = withPermission vid $ do
+execute vid Tectus = withPermission Honored vid $ do
     let quoteTectus 0 = sendMessage $ Message 0 vid "Even the mountain... falls..." [] []
         quoteTectus i = do
             r <- liftIO $ randomRIO (1, 7)
@@ -153,7 +158,7 @@ execute vid Tectus = withPermission vid $ do
     liftIO $ threadDelay 2000000
     quoteTectus 4
 
-execute vid Thogar = withPermission vid $ do
+execute vid Thogar = withPermission Honored vid $ do
     let quotes = ["Redball incoming!"
                  ,"Send'er on down the line!"
                  ,"Faster! Bat the stack off her!"
@@ -193,6 +198,10 @@ execute vid Thogar = withPermission vid $ do
     sendMessage $ Message 0 vid "Blackhand won't tolerate anymore delays." [] []
     liftIO $ threadDelay 2000000
     quoteThogar 10
+
+execute vid Status = do
+    (UserPermissions perms) <- userperm <$> get
+    sendMessage $ Message 0 vid (show $ Map.findWithDefault User (userID vid) perms) [] []
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
