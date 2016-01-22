@@ -16,13 +16,26 @@ import Network.HTTP.Client
 import qualified Data.Text as T
 import VK.Types
 import qualified Data.Map as Map
+import Control.Concurrent (threadDelay)
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
     infoM rootLoggerName $ "Dispatching " ++ meth ++ " with " ++ show args
     r <- W.getWith opts url `E.catch` handler
-    infoM rootLoggerName $ "Dispatched!"
-    return $ r ^. W.responseBody
+    case decode (r ^. W.responseBody) of
+        Nothing -> do
+            infoM rootLoggerName $ "Dispatched!"
+            return $ r ^. W.responseBody
+        Just (ErrorResponse code msg) -> case code of
+            -- Flood Control
+            9 -> do
+                infoM rootLoggerName $ "Recieved flood control."
+                threadDelay 30000000
+                defaultDispatcher at ver meth args
+            _ -> do
+                infoM rootLoggerName $ "VK gave a response with error: " ++ msg ++ "(" ++ show code ++ ")"
+                threadDelay 30000000
+                defaultDispatcher at ver meth args
     where
         url = "https://api.vk.com/method/" ++ meth
         opts = foldl (&) W.defaults $ map (\(x, y) -> W.param (T.pack x) .~ [T.pack y]) args'
