@@ -2,7 +2,15 @@
 , "password": ""
 , "appID": ""
 , "imageURL": "http://wow.zamimg.com/images/hearthstone/cards/"
+, "soundURL": "http://example.com/"
 , "jsonURL": "https://hearthstonejson.com/json/"
 , "data": "data/"
-, "locales": ["enUS", "ruRU"]
+, "aliases": {}
+, "permissions":
+    { "admins": []
+    , "honored": []
+    , "banned": []
+    }
+, "quotebanned": []
+, "quotecd": 0
 }
