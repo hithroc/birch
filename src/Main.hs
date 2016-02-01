@@ -51,9 +51,7 @@ main = do
                     case myUser of
                         Nothing -> liftIO $ warningM rootLoggerName "Failed to fetch user's name!"
                         Just myUser' -> modify (\x -> x { logUser = myUser' })
-                    str <- uploadDocument "file.txt" "file.txt"
-                    liftIO $ putStrLn str
-                    --loop
+                    loop
             case cfg of
                 Nothing -> do
                     errorM rootLoggerName "Failed to load config.json!"

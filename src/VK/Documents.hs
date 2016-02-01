@@ -1,4 +1,6 @@
+module VK.Documents where
 
+import VK.Types
 import VK.Base
 import Control.Lens
 import Control.Monad
@@ -20,6 +22,7 @@ uploadDocument filename raw = do
                 Nothing -> return ""
                 Just (DocUploadResponse f) -> do
                     info <- dispatch "docs.save" [("file", f), ("title", filename)]
+                    liftIO $ print info
                     let resp = decode info :: Maybe DocResponse
                         toAttachment = \(DocResponse o i) -> "doc" ++ show o ++ "_" ++ show i
                     return $ maybe "" toAttachment $ resp

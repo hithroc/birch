@@ -98,7 +98,7 @@ execute vid (CardRequest msg) = do
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
     filtCards <- traverse (processCard prio) aliasedCards
     unless (null filtCards) $ do
-        pattachments <- traverse ((uncurry getCardImage) . snd) filtCards
+        pattachments <- traverse (\(tags, x) -> (uncurry $ getCardImage (S.member Golden tags)) x) filtCards
         let audioget (tags, (loc, card)) = do
                 let action x = case x of
                         Snd st -> getCardSound loc st card
@@ -205,10 +205,12 @@ execute vid Status = do
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
-getCardImage :: (MonadVK m, MonadCardsDB m) => Locale -> Card -> m (String)
-getCardImage (Locale loc) c = do
+getCardImage :: (MonadVK m, MonadCardsDB m) => Bool -> Locale -> Card -> m (String)
+getCardImage golden (Locale loc) c = do
     url <- imageURL <$> get
-    let imgurl = url ++ map toLower loc ++ "/original/" ++ cardID c ++ ".png"
+    let path = if golden then "/animated/" else "/original/"
+        ext = if golden then "_premium.gif" else ".png"
+        imgurl = url ++ map toLower loc ++ path ++ cardID c ++ ext
     acid <- liftIO $ openLocalState (CardPics Map.empty)
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
@@ -216,7 +218,7 @@ getCardImage (Locale loc) c = do
             r <- liftIO $ ((Right <$> W.get imgurl) `E.catch` \(e :: E.SomeException) -> return (Left e))
             case r of
                 Right r' -> do
-                    pid <- uploadPhoto (r' ^. W.responseBody)
+                    pid <- if golden then uploadDocument "card.gif" (r' ^. W.responseBody) else uploadPhoto (r' ^. W.responseBody)
                     unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
                     return pid
                 Left e -> do
