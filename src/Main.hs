@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import qualified Network.Wreq as W
 import Control.Lens
 import VK
+import VK.Documents
 import VK.Users
 import Control.Concurrent
 import Control.Concurrent.STM
@@ -50,7 +51,9 @@ main = do
                     case myUser of
                         Nothing -> liftIO $ warningM rootLoggerName "Failed to fetch user's name!"
                         Just myUser' -> modify (\x -> x { logUser = myUser' })
-                    loop
+                    str <- uploadDocument "file.txt" "file.txt"
+                    liftIO $ putStrLn str
+                    --loop
             case cfg of
                 Nothing -> do
                     errorM rootLoggerName "Failed to load config.json!"
