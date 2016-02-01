@@ -210,7 +210,7 @@ getCardImage golden (Locale loc) c = do
     url <- imageURL <$> get
     let path = if golden then "/animated/" else "/original/"
         ext = if golden then "_premium.gif" else ".png"
-        imgurl = url ++ map toLower loc ++ path ++ cardID c ++ ext
+        imgurl = url ++ map toLower loc ++ path ++ cardID c ++ ext ++ "?10833" -- Magic Number
     acid <- liftIO $ openLocalState (CardPics Map.empty)
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
