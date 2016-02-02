@@ -26,6 +26,7 @@ import qualified Control.Exception as E
 import qualified Network.Wreq as W
 import qualified Data.Set as S
 import UserManagment
+import LolEcho
 
 data Command
     = Version
@@ -35,6 +36,7 @@ data Command
     | Tectus
     | Status
     | Update
+    | LolEchoWords [String] Message
     | CardCraft Rarity
     | CardRequest Message
 
@@ -51,6 +53,7 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("thogar":_) -> Thogar
         Just ("tectus":_) -> Tectus
         Just ("status":_) -> Status
+        Just ("lolecho":w) -> LolEchoWords w msg
         Just (["which","legendary","to","craft"]) -> CardCraft LEGENDARY
         Just (["which","epic","to","craft"]) -> CardCraft EPIC
         Just (["which","rare","to","craft"]) -> CardCraft RARE
@@ -202,6 +205,11 @@ execute vid Thogar = withPermission Honored vid $ do
 execute vid Status = do
     (UserPermissions perms) <- userperm <$> get
     sendMessage $ Message 0 vid (show $ Map.findWithDefault User (userID vid) perms) [] []
+
+execute vid (LolEchoWords w msg) = withPermission User vid $ do
+    let w' = map q w
+    sendMessage $ Message 0 vid (unwords w') [] [msgID msg]
+    
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
