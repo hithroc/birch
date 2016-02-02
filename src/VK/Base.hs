@@ -47,7 +47,7 @@ defaultDispatcher at ver meth args = do
             W.getWith opts url `E.catch` handler
 
 defaultVKData :: VKData
-defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio] defaultDispatcher "5.40" 0 Nothing (VKUser (UserID 0) "" "") (Map.empty)
+defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio, V.Docs] defaultDispatcher "5.40" 0 Nothing (VKUser (UserID 0) "" "") (Map.empty)
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do

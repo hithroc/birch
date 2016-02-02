@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import qualified Network.Wreq as W
 import Control.Lens
 import VK
+import VK.Documents
 import VK.Users
 import Control.Concurrent
 import Control.Concurrent.STM

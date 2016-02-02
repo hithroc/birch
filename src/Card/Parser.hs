@@ -8,6 +8,7 @@ import qualified Data.Set as S
 data CardTag 
     = Loc Locale
     | Snd SoundType
+    | Golden
     deriving (Show, Eq, Ord)
 
 tag :: Parser (String, String)
@@ -45,4 +46,6 @@ cardTag ("locale", l) = Just $ Loc (Locale l)
 cardTag ("sound", "death") = Just $ Snd Death
 cardTag ("sound", "attack") = Just $ Snd Attack
 cardTag ("sound", "play") = Just $ Snd Play
+cardTag ("golden", _) = Just Golden
+cardTag ("gold", _) = Just Golden
 cardTag _ = Nothing

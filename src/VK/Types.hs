@@ -42,7 +42,7 @@ data Message = Message
 data MessageResponse = MessageResponse [Message]
     deriving Show
 
-data LongPollValue 
+data LongPollValue
     = IntData  { intdata :: Integer }
     | TextData { textdata :: String }
     | ObjData  { objdata :: Map.Map String LongPollValue }
@@ -53,9 +53,13 @@ data ErrorResponse = ErrorResponse Int String
 
 data PhotoServ = PhotoServ String
 data UploadResponse = UploadResponse Integer String String
+data DocUploadResponse = DocUploadResponse String
+data DocResponse = DocResponse Integer Integer
 data Photo = Photo Integer Integer
     deriving Show
 data PhotoResponse = PhotoResponse Value
+    deriving Show
+data DocPersponse = DocResponce Int Int
     deriving Show
 
 instance Eq ID where
@@ -110,11 +114,25 @@ instance FromJSON UploadResponse where
                         <*> v .: "photo"
                         <*> v .: "hash"
     parseJSON _ = mzero
+
+instance FromJSON DocUploadResponse where
+    parseJSON (Object v) = DocUploadResponse <$> v .: "file"
+    parseJSON _ = mzero
+
 instance FromJSON PhotoResponse where
     parseJSON (Object v) = do
         resbody <- v .: "response"
         return $ PhotoResponse resbody
     parseJSON _ = mzero
+
+instance FromJSON DocResponse where
+    parseJSON (Object v) = do
+        res <- head <$> v .: "response"
+        i <- res .: "id"
+        oi <- res .: "owner_id"
+        return $ DocResponse oi i
+    parseJSON _ = mzero
+
 instance FromJSON Photo where
     parseJSON (Object v) = Photo
                         <$> v .: "owner_id"
@@ -139,3 +157,4 @@ instance FromJSON ErrorResponse where
         code <- res .: "error_code"
         msg <- res .: "error_msg"
         return $ ErrorResponse code msg
+    parseJSON _ = mzero
