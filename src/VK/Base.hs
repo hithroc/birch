@@ -30,7 +30,7 @@ defaultDispatcher at ver meth args = do
             9 -> do
                 infoM rootLoggerName $ "Recieved flood control."
                 threadDelay 30000000
-                return ()
+                return ("")
                 --defaultDispatcher at ver meth args
             _ -> do
                 infoM rootLoggerName $ "VK gave a response with error: " ++ msg ++ "(" ++ show code ++ ")"
