@@ -105,4 +105,3 @@ friendsLoop = do
     traverse_ acceptFriend ids
     liftIO $ threadDelay 5000000
     friendsLoop
-    

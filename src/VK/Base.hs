@@ -21,18 +21,17 @@ import Control.Concurrent.STM
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
-    infoM rootLoggerName $ "Dispatching " ++ meth ++ " with " ++ show args
     r <- W.getWith opts url `E.catch` handler
     case decode (r ^. W.responseBody) of
         Nothing -> do
-            infoM rootLoggerName $ "Dispatched!"
             return $ r ^. W.responseBody
         Just (ErrorResponse code msg) -> case code of
             -- Flood Control
             9 -> do
                 infoM rootLoggerName $ "Recieved flood control."
                 threadDelay 30000000
-                defaultDispatcher at ver meth args
+                return ()
+                --defaultDispatcher at ver meth args
             _ -> do
                 infoM rootLoggerName $ "VK gave a response with error: " ++ msg ++ "(" ++ show code ++ ")"
                 threadDelay 30000000
