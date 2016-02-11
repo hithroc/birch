@@ -9,7 +9,7 @@ import System.Log.Logger
 
 getFriendRequests :: MonadVK m => m ([ID])
 getFriendRequests = do
-    r <- dispatch "friends.getRequests" []
+    r <- dispatch "friends.getRequests" [("need_viewed", "1")]
     case decode r of
         Nothing -> do
             liftIO $ warningM rootLoggerName "Failed to decode the response about friend requests!"
