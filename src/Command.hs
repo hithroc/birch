@@ -43,7 +43,9 @@ data Command
 
 parseCommand :: MonadVK m => Message -> m Command
 parseCommand msg@(Message {message = msgtext}) = do
-    (VKUser _ uname _) <- logUser <$> get
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    (VKUser _ uname _) <- logUser <$> atomdata
     let prefix = uname ++ ", "
     return $ case fmap words (prefix `stripPrefix` msgtext) of
         Just ("version":_) -> Version
@@ -63,7 +65,9 @@ parseCommand msg@(Message {message = msgtext}) = do
 
 checkPermission :: MonadVK m => Permission -> ID -> m (Maybe String)
 checkPermission perm i = do
-    (UserPermissions perms) <- userperm <$> get
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    (UserPermissions perms) <- userperm <$> atomdata
     let perm' = Map.findWithDefault User (userID i) perms
     let msg = Map.findWithDefault "You don't have a permisison to execute that command" perm' permMsgs
     return (if perm >= perm' then Nothing else Just msg)
@@ -77,14 +81,6 @@ withPermission perm vid f = do
 
 prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
-executeIO :: TVar VKData -> TVar Config -> Cards -> ID -> Command -> IO ()
-executeIO tvd tcfg cs id command =  do
-    vkdata <- atomically $ readTVar tvd
-    cfg <- atomically $ readTVar tcfg
-    ((_,vkdata'),cfg') <- runStateT (runStateT (runReaderT (execute id command) cs) vkdata) cfg
-    atomically $ writeTVar tcfg cfg'
-    atomically $ writeTVar tvd vkdata'
-
 execute :: (MonadVK m, MonadCardsDB m) => ID -> Command -> m ()
 execute vid Version = withPermission Everyone vid $ sendMessage (Message 0 vid ("Current version: " ++ version) [] [])
 execute vid Reload = withPermission Admin vid $ do
@@ -92,11 +88,14 @@ execute vid Reload = withPermission Admin vid $ do
     case cfg of
         Nothing -> sendMessage $ Message 0 vid "Failed to reload config" [] []
         Just cfg' -> do
-            modify (const cfg')
+            tcfg <- ask
+            liftIO . atomically . modifyTVar tcfg $ const cfg'
             sendMessage $ Message 0 vid "Config reloaded" [] []
 
 execute vid (CardRequest msg) = do
-    a <- aliases <$> get
+    tcfg <- ask
+    let atomcfg = liftIO . atomically . readTVar $ tcfg
+    a <- aliases <$> atomcfg
     let parsedCards = parseCards . message $ msg
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
     filtCards <- traverse (processCard prio) aliasedCards
@@ -112,30 +111,26 @@ execute vid (CardRequest msg) = do
         sendMessage retmsg
 
 execute vid Quote = withPermission User vid $ do
-    cooldowns <- quoteCooldown <$> get
-    curtime <- liftIO $ getCurrentTime
-    cd <- quoteCD <$> get
-    let time = fromMaybe (addUTCTime (negate cd) curtime) (Map.lookup vid cooldowns)
-        diff = diffUTCTime curtime time
-    if diff >= cd then do
-        lid <- lastMessageID <$> get
-        banned <- bannedForQuote <$> get
-        r <- liftIO $ randomRIO (1,lid)
-        res <- dispatch "messages.getById" [("message_ids", show r)]
-        let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
-        case msgs of
-            (x:_) -> do
-                if userID (uid x) `elem` banned then do
-                    execute vid Quote
-                else do
-                    modify (\d -> d { quoteCooldown = Map.insert vid curtime cooldowns })
-                    sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
-            _ -> execute vid Quote
-    else sendMessage $ Message 0 vid ("You have to wait another " ++ renderSecs (truncate $ cd - diff) ++ " before you can fetch another quote") [] []
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    tcfg <- ask
+    let atomcfg = liftIO . atomically . readTVar $ tcfg
+    lid <- lastMessageID <$> atomdata
+    banned <- bannedForQuote <$> atomcfg
+    r <- liftIO $ randomRIO (1,lid)
+    res <- dispatch "messages.getById" [("message_ids", show r)]
+    let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
+    case msgs of
+        (x:_) -> do
+            if userID (uid x) `elem` banned then do
+                execute vid Quote
+            else do
+                sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
+        _ -> execute vid Quote
 
 execute vid Update = withPermission Admin vid $ do
     downloadSet
-    sendMessage $ Message 0 vid "Database updated!" [] []
+    sendMessage $ Message 0 vid "Database updated, but you need to restart the bot." [] []
 
 execute vid (CardCraft r) = withPermission User vid $ do
     (cards' :: Cards) <- ask
@@ -203,7 +198,9 @@ execute vid Thogar = withPermission Honored vid $ do
     quoteThogar 10
 
 execute vid Status = do
-    (UserPermissions perms) <- userperm <$> get
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    (UserPermissions perms) <- userperm <$> atomdata
     sendMessage $ Message 0 vid (show $ Map.findWithDefault User (userID vid) perms) [] []
 
 execute vid (LolEchoWords w msg) = withPermission User vid $ do
@@ -215,7 +212,9 @@ execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet"
 
 getCardImage :: (MonadVK m, MonadCardsDB m) => Bool -> Locale -> Card -> m (String)
 getCardImage golden (Locale loc) c = do
-    url <- imageURL <$> get
+    tcfg <- ask
+    let atomcfg = liftIO . atomically . readTVar $ tcfg
+    url <- imageURL <$> atomcfg
     let path = if golden then "/animated/" else "/original/"
         ext = if golden then "_premium.gif" else ".png"
         imgurl = url ++ map toLower loc ++ path ++ cardID c ++ ext ++ "?10833" -- Magic Number
@@ -245,13 +244,15 @@ downloadFile url = do
 
 getCardSound :: (MonadVK m, MonadCardsDB m) => Locale -> SoundType -> Card -> m (String)
 getCardSound (Locale loc) st c = do
+    tcfg <- ask
+    let atomcfg = liftIO . atomically . readTVar $ tcfg
     let audiouid = show st ++ loc ++ cardID c
     acid <- liftIO $ openLocalState (AudioIds Map.empty)
     mbAudio <- liftIO $ query acid (GetAudio audiouid)
     pid <- case if isNotFound c then Just "" else mbAudio of
         Just x -> return x
         Nothing -> do
-            url <- soundURL <$> get
+            url <- soundURL <$> atomcfg
             let filenames :: [String]
                 filenames = do
                     number <- [1..9]

@@ -17,13 +17,16 @@ import qualified Control.Exception as E
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
 import VK.Types
+import Control.Concurrent.STM
 
 getMessages :: MonadVK m => m [Message]
 getMessages = do
-    lid <- lastMessageID <$> get
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    lid <- lastMessageID <$> atomdata
     r <- dispatch "messages.get" [("last_message_id", show lid), ("count", "20")]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode r :: Maybe MessageResponse)
-    unless (null msgs) $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs})
+    unless (null msgs) $ liftIO . atomically . modifyTVar tdata $ \x -> x {lastMessageID = maximum $ map msgID msgs}
     return msgs
 
 sendMessage :: MonadVK m => Message -> m ()
@@ -59,12 +62,14 @@ longToMsg v =
 
 getLongPoll :: MonadVK m => m [Message]
 getLongPoll = do
-    lps <- longPollServer <$> get
+    tdata <- ask
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    lps <- longPollServer <$> atomdata
     case lps of
         Nothing -> do
             r <- dispatch "messages.getLongPollServer" []
             liftIO $ infoM rootLoggerName "Connected to a Long Poll server"
-            modify (\x -> x {longPollServer = decode r})
+            liftIO . atomically . modifyTVar tdata $ (\x -> x {longPollServer = decode r})
             getLongPoll
         Just s -> do
             let url = "https://" ++ lpsurl s ++ "?act=a_check&key=" ++ lpskey s ++ "&ts=" ++ show (lpsts s) ++ "&wait=25&mode=2"
@@ -78,10 +83,10 @@ getLongPoll = do
             case decode (r ^. W.responseBody) of
                 Nothing -> do
                     liftIO $ infoM rootLoggerName "LongPoll server key expired (most likely). Retrying"
-                    modify (\x -> x {longPollServer = Nothing})
+                    liftIO . atomically . modifyTVar tdata $ (\x -> x {longPollServer = Nothing})
                     getLongPoll
                 Just (LongPollResponse msgs ts) -> do
-                    modify (\x -> x {longPollServer = Just (s { lpsts = ts })})
+                    liftIO . atomically . modifyTVar tdata $ (\x -> x {longPollServer = Just (s { lpsts = ts })})
                     let msgs' = mapMaybe longToMsg msgs
-                    unless (null msgs') $ modify (\x -> x {lastMessageID = maximum $ map msgID msgs'})
+                    unless (null msgs') $ liftIO . atomically . modifyTVar tdata $ (\x -> x {lastMessageID = maximum $ map msgID msgs'})
                     return msgs'

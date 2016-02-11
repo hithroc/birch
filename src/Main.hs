@@ -26,6 +26,9 @@ import System.Exit
 import Data.List
 import Version
 import Command
+import Control.Concurrent.Lifted (fork)
+import Control.Monad.Trans.Control
+
 
 main :: IO ()
 main = do
@@ -39,24 +42,28 @@ main = do
         relaunch = main' `E.catches` handlers 5
         main' = do
             cfg <- loadConfig "config.json"
-            let initCfg :: (MonadConfig m, MonadIO m) => m ()
+            let initCfg :: (MonadConfig m, MonadIO m, MonadBaseControl IO m) => m ()
                 initCfg = do
-                    --downloadSet
                     cards <- readCards
-                    evalStateT (runReaderT initVK cards) defaultVKData
+                    tdata <- liftIO . atomically . newTVar $ defaultVKData
+                    runReaderT (runReaderT initVK cards) tdata
                 initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
                 initVK = do
                     login
                     myUser <- getUser Nothing
                     case myUser of
                         Nothing -> liftIO $ warningM rootLoggerName "Failed to fetch user's name!"
-                        Just myUser' -> modify (\x -> x { logUser = myUser' })
+                        Just myUser' -> do
+                            tdata <- ask
+                            liftIO . atomically . modifyTVar tdata $ (\x -> x { logUser = myUser' })
                     loop
             case cfg of
                 Nothing -> do
                     errorM rootLoggerName "Failed to load config.json!"
                     exitFailure
-                Just cfg' -> void $ evalStateT initCfg cfg'
+                Just cfg' -> do
+                    tcfg <- atomically . newTVar $ cfg'
+                    void $ runReaderT initCfg tcfg
         mainHandler :: Int -> SomeException -> IO ()
         mainHandler 0 e = do
             emergencyM rootLoggerName $ "It's dead, Jim"
@@ -86,17 +93,7 @@ initLogger = do
 
 loop :: (MonadVK m, MonadCardsDB m) => m ()
 loop = do
-    (VKUser _ uname _) <- logUser <$> get
     msgs <- getLongPoll
     commands <- traverse (parseCommand) msgs
-    cfg <- get
-    vkdata <- get
-    cards <- ask
-    tcfg <- liftIO . atomically $ newTVar cfg
-    tvkdata <- liftIO . atomically $ newTVar vkdata
-    traverse_ (\(x, y) -> liftIO . void . forkIO $ executeIO tvkdata tcfg cards (uid x) y) $ zip msgs commands
-    cfg' <- liftIO . atomically $ readTVar tcfg
-    vkdata' <- liftIO . atomically $ readTVar tvkdata
-    modify (const cfg')
-    modify (const vkdata')
+    traverse_ (\(x, y) -> fork $ execute (uid x) y) $ zip msgs commands
     loop

@@ -10,6 +10,7 @@ import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 import qualified Data.Set as S
+import Control.Concurrent.STM
 
 type Cards = [Card]
 

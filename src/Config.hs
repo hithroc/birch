@@ -7,6 +7,7 @@ import qualified Data.ByteString.Lazy as BS
 import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 import UserManagment
+import Control.Concurrent.STM
 
 type Aliases = Map.Map String String
 
@@ -39,7 +40,7 @@ instance FromJSON Config where
                         <*> (fromInteger <$> v .: "quotecd")
     parseJSON _ = mzero
 
-type MonadConfig = MonadState Config
+type MonadConfig = MonadReader (TVar Config)
 
 loadConfig :: FilePath -> IO (Maybe Config)
 loadConfig path = decode <$> BS.readFile path

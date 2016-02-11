@@ -9,10 +9,12 @@ import qualified Web.VKHS as V
 import qualified Data.Map as Map
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
+import Control.Concurrent.STM
+import Control.Monad.Trans.Control
 
 type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
 data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
-type MonadVK m = (MonadConfig m, MonadState VKData m, MonadIO m)
+type MonadVK m = (MonadConfig m, MonadReader (TVar VKData) m, MonadIO m, MonadBaseControl IO m)
 
 data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: Integer }
     deriving (Show, Ord)

@@ -17,6 +17,7 @@ import qualified Data.Text as T
 import VK.Types
 import qualified Data.Map as Map
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.STM
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
@@ -51,24 +52,30 @@ defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio, V.Docs] defaul
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do
-    expdate <- expireDate <$> get
+    d <- ask
+    let atomized = liftIO . atomically . readTVar $ d
+    expdate <- expireDate <$> atomized
     curtime <- liftIO $ getCurrentTime
     case expdate of
         Just t -> when (diffUTCTime t curtime < 120) $ do
                 liftIO . infoM rootLoggerName $ "Access token is about to expire, relogging..."
                 login
         Nothing -> liftIO . warningM rootLoggerName $ "No token expiration time set!"
-    d <- dispatcher <$> get
-    at <- accessToken <$> get
-    ver <- apiVersion <$> get
+    d <- dispatcher <$> atomized
+    at <- accessToken <$> atomized
+    ver <- apiVersion <$> atomized
     liftIO $ d at ver meth args
 
 login :: MonadVK m => m ()
 login = do
-    vklog  <- vkLogin <$> get
-    vkpass <- vkPass <$> get
-    aid    <- appID <$> get
-    rs <- accessRights <$> get
+    (tcfg :: TVar Config) <- ask
+    (tdata :: TVar VKData) <- ask
+    let atomized = liftIO . atomically . readTVar $ tcfg
+    let atomdata = liftIO . atomically . readTVar $ tdata
+    vklog  <- vkLogin <$> atomized
+    vkpass <- vkPass <$> atomized
+    aid    <- appID <$> atomized
+    rs <- accessRights <$> atomdata
     let e = V.env aid vklog vkpass rs
     at' <- liftIO $ V.login e
     case at' of
@@ -79,4 +86,4 @@ login = do
             let expdate = addUTCTime (fromIntegral . read $ expstr) curtime
             tz <- liftIO $ getCurrentTimeZone
             liftIO . infoM rootLoggerName $ "Token expires at " ++ show (utcToLocalTime tz expdate) ++ " " ++ show tz
-            modify (\x -> x { accessToken = at, expireDate = Just expdate })
+            liftIO . atomically . modifyTVar tdata $ \x -> x { accessToken = at, expireDate = Just expdate }
