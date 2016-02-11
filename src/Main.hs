@@ -56,6 +56,7 @@ main = do
                         Just myUser' -> do
                             tdata <- ask
                             liftIO . atomically . modifyTVar tdata $ (\x -> x { logUser = myUser' })
+                    fork $ friendsLoop
                     loop
             case cfg of
                 Nothing -> do
@@ -97,3 +98,11 @@ loop = do
     commands <- traverse (parseCommand) msgs
     traverse_ (\(x, y) -> fork $ execute (uid x) y) $ zip msgs commands
     loop
+
+friendsLoop :: (MonadVK m, MonadCardsDB m) => m ()
+friendsLoop = do
+    ids <- getFriendRequests
+    traverse_ acceptFriend ids
+    liftIO $ threadDelay 5000000
+    friendsLoop
+    

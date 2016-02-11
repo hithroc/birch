@@ -21,6 +21,8 @@ data ID = UserID { userID :: Integer } | ChatID { userID :: Integer, chatID :: I
 data VKUser = VKUser ID String String
     deriving Show
 
+data FriendRequests = FriendRequests [ID]
+
 data VKData = VKData
     { accessToken :: String
     , expireDate :: Maybe UTCTime
@@ -159,4 +161,11 @@ instance FromJSON ErrorResponse where
         code <- res .: "error_code"
         msg <- res .: "error_msg"
         return $ ErrorResponse code msg
+    parseJSON _ = mzero
+
+instance FromJSON FriendRequests where
+    parseJSON (Object v) = do
+        res <- v .: "response"
+        items <- res .: "items"
+        return . FriendRequests . map UserID $ items
     parseJSON _ = mzero
