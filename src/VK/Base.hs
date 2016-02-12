@@ -8,11 +8,13 @@ import Data.Aeson
 import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Network.Wreq as W
+import qualified Network.Wreq.Session as WS
 import qualified Web.VKHS as V
 import System.Log.Logger
 import qualified Data.ByteString.Lazy as BS
 import qualified Control.Exception as E
 import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import qualified Data.Text as T
 import VK.Types
 import qualified Data.Map as Map
@@ -21,7 +23,8 @@ import Control.Concurrent.STM
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
-    r <- W.getWith opts url `E.catch` handler
+    let opts' = opts & W.manager .~ Left (tlsManagerSettings { managerResponseTimeout = Just 10000 } )
+    r <- W.getWith opts' url `E.catch` handler
     case decode (r ^. W.responseBody) of
         Nothing -> do
             return $ r ^. W.responseBody
