@@ -56,10 +56,10 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("tectus":_) -> Tectus
         Just ("status":_) -> Status
         Just ("lolecho":w) -> LolEchoWords w msg
-        Just (["which","legendary","to","craft"]) -> CardCraft LEGENDARY
-        Just (["which","epic","to","craft"]) -> CardCraft EPIC
-        Just (["which","rare","to","craft"]) -> CardCraft RARE
-        Just (["which","common","to","craft"]) -> CardCraft COMMON
+        Just (["random", "legendary"]) -> CardCraft LEGENDARY
+        Just (["random", "epic"]) -> CardCraft EPIC
+        Just (["random","rare"]) -> CardCraft RARE
+        Just (["random","common"]) -> CardCraft COMMON
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
