@@ -5,7 +5,7 @@ import Card.Type (Locale(..), SoundType(..))
 import Data.Maybe
 import qualified Data.Set as S
 
-data CardTag 
+data CardTag
     = Loc Locale
     | Snd SoundType
     | Golden
@@ -49,5 +49,5 @@ cardTag ("sound", "attack") = Just $ Snd Attack
 cardTag ("sound", "play") = Just $ Snd Play
 cardTag ("golden", _) = Just Golden
 cardTag ("gold", _) = Just Golden
-cardTag ("text", _) = Just Text
+cardTag ("text", _) = Just PrintText
 cardTag _ = Nothing
