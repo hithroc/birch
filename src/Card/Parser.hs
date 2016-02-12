@@ -9,6 +9,7 @@ data CardTag
     = Loc Locale
     | Snd SoundType
     | Golden
+    | PrintText
     deriving (Show, Eq, Ord)
 
 tag :: Parser (String, String)
@@ -48,4 +49,5 @@ cardTag ("sound", "attack") = Just $ Snd Attack
 cardTag ("sound", "play") = Just $ Snd Play
 cardTag ("golden", _) = Just Golden
 cardTag ("gold", _) = Just Golden
+cardTag ("text", _) = Just Text
 cardTag _ = Nothing

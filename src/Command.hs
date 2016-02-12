@@ -107,7 +107,8 @@ execute vid (CardRequest msg) = do
                         _ -> return ""
                 traverse (action) $ S.toList tags
         aattachments <- concat <$> traverse (audioget) filtCards
-        let retmsg = Message 0 vid (unlines . map ((uncurry printCard) . snd) $ filtCards) (pattachments ++ aattachments) []
+
+        let retmsg = Message 0 vid (unlines . map (\(tags, x) -> (if S.member PrintText tags || pattachments == "" then uncurry printCard else "") . x) $ filtCards) (pattachments ++ aattachments) []
         sendMessage retmsg
 
 execute vid Quote = withPermission User vid $ do
