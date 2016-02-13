@@ -25,6 +25,13 @@ executable birch
                ,       VK.Base
                ,       VK.Users
                ,       VK.Audio
+               ,       AudioDB
+               ,       LolEcho
+               ,       Paths_birch
+               ,       UserManagment
+               ,       VK.Documents
+               ,       VK.Friends
+               ,       VK.Types
                ,       CardPictureDB
   ghc-options:         -Wall -O2 -fno-warn-unused-do-bind
   main-is:             Main.hs

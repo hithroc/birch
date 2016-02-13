@@ -8,7 +8,6 @@ import Data.Aeson
 import Data.Time.Clock
 import Data.Time.LocalTime
 import qualified Network.Wreq as W
-import qualified Network.Wreq.Session as WS
 import qualified Web.VKHS as V
 import System.Log.Logger
 import qualified Data.ByteString.Lazy as BS
@@ -54,8 +53,8 @@ defaultVKData = VKData "" Nothing [V.Messages, V.Photos, V.Audio, V.Docs, V.Frie
 
 dispatch :: MonadVK m => String -> [(String, String)] -> m BS.ByteString
 dispatch meth args = do
-    d <- ask
-    let atomized = liftIO . atomically . readTVar $ d
+    tdata <- ask
+    let atomized = liftIO . atomically . readTVar $ tdata
     expdate <- expireDate <$> atomized
     curtime <- liftIO $ getCurrentTime
     case expdate of
@@ -82,10 +81,10 @@ login = do
     at' <- liftIO $ V.login e
     case at' of
         Left s -> liftIO . errorM rootLoggerName $ "VK Login error: " ++ s
-        Right (at, uid, expstr) -> do
-            liftIO . infoM rootLoggerName $ "Login as " ++ uid ++ " successfull"
+        Right (at, suid, expstr) -> do
+            liftIO . infoM rootLoggerName $ "Login as " ++ suid ++ " successfull"
             curtime <- liftIO $ getCurrentTime
-            let expdate = addUTCTime (fromIntegral . read $ expstr) curtime
+            let expdate = addUTCTime (fromIntegral (read expstr :: Integer)) curtime
             tz <- liftIO $ getCurrentTimeZone
             liftIO . infoM rootLoggerName $ "Token expires at " ++ show (utcToLocalTime tz expdate) ++ " " ++ show tz
             liftIO . atomically . modifyTVar tdata $ \x -> x { accessToken = at, expireDate = Just expdate }

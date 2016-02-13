@@ -35,7 +35,7 @@ card = do
 
 parseCards :: String -> [(S.Set CardTag, String)]
 parseCards str = case parse (many $ try one) "" str of
-    Left e -> []
+    Left _ -> []
     Right xs -> map (\(ts, n) -> (S.fromList $ mapMaybe cardTag ts, n)) xs
     where
         one = card <|> (anyChar >> one)

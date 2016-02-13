@@ -1,9 +1,7 @@
 module Card.Json where
 
-import Data.Aeson.Lens
 import Data.Aeson
 import Data.Maybe
-import Data.Foldable
 import qualified Network.Wreq as W
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
@@ -11,7 +9,6 @@ import Control.Lens
 import Config
 import Card.Type
 import qualified Data.ByteString.Lazy as BS
-import Debug.Trace
 import System.Log.Logger
 import Control.Concurrent.STM
 

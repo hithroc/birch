@@ -2,10 +2,7 @@ module Main where
 
 import Config
 import Card
-import Data.Char
-import Data.Maybe
 import Data.Foldable
-import qualified Data.Set as S
 import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
 import System.Log.Logger
@@ -13,17 +10,11 @@ import System.Log.Formatter
 import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple hiding (priority)
 import System.IO
-import qualified Data.Map as Map
-import qualified Network.Wreq as W
-import Control.Lens
 import VK
-import VK.Documents
-import VK.Users
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception as E
 import System.Exit
-import Data.List
 import Version
 import Command
 import Control.Concurrent.Lifted (fork)
@@ -34,7 +25,7 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     initLogger
-    infoM rootLoggerName "=== START ==="
+    infoM rootLoggerName $ "Birch ver. " ++ version
     relaunch
     where
         handlers :: Int -> [Handler ()]
@@ -66,7 +57,7 @@ main = do
                     tcfg <- atomically . newTVar $ cfg'
                     void $ runReaderT initCfg tcfg
         mainHandler :: Int -> SomeException -> IO ()
-        mainHandler 0 e = do
+        mainHandler 0 _ = do
             emergencyM rootLoggerName $ "It's dead, Jim"
             error "The program is completely crashed"
         mainHandler i e = do

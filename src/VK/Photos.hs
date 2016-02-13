@@ -2,7 +2,6 @@ module VK.Photos where
 
 import VK.Base
 import Control.Lens
-import Control.Monad
 import Control.Monad.Trans
 import Data.Aeson
 import qualified Network.Wreq as W

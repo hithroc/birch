@@ -2,8 +2,6 @@ module VK.Users where
 
 import VK.Base
 import Data.Aeson
-import Control.Monad
-import Data.Maybe
 import VK.Types
 
 

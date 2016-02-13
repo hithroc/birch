@@ -5,7 +5,6 @@ import Version
 import VK
 import Config
 import Data.List
-import Data.Time.Clock
 import Control.Monad.Ether.Implicit
 import Control.Monad.Trans
 import Control.Concurrent (threadDelay)
@@ -19,7 +18,6 @@ import CardPictureDB
 import AudioDB
 import Control.Lens
 import System.Random
-import System.Time.Utils (renderSecs)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
 import qualified Control.Exception as E
@@ -39,6 +37,7 @@ data Command
     | LolEchoWords [String] Message
     | CardCraft Rarity
     | CardRequest Message
+    | Impossible
 
 
 parseCommand :: MonadVK m => Message -> m Command
@@ -79,6 +78,7 @@ withPermission perm vid f = do
         Nothing -> f
         Just msg' -> sendMessage $ Message 0 vid msg' [] []
 
+prio :: [Card -> Bool]
 prio = [collectible, isSpell, isWeapon, isMinion, isHero, isHeroPower]
 
 execute :: (MonadVK m, MonadCardsDB m) => ID -> Command -> m ()
@@ -101,9 +101,9 @@ execute vid (CardRequest msg) = do
     filtCards <- traverse (processCard prio) aliasedCards
     unless (null filtCards) $ do
         pattachments <- traverse (\(tags, x) -> (uncurry $ getCardImage (S.member Golden tags)) x) filtCards
-        let audioget (tags, (loc, card)) = do
+        let audioget (tags, (loc, c)) = do
                 let action x = case x of
-                        Snd st -> getCardSound loc st card
+                        Snd st -> getCardSound loc st c
                         _ -> return ""
                 traverse (action) $ S.toList tags
         aattachments <- concat <$> traverse (audioget) filtCards
@@ -155,7 +155,7 @@ execute vid Tectus = withPermission Honored vid $ do
     liftIO $ threadDelay 2000000
     sendMessage $ Message 0 vid "RISE MOUNTAINS" [] []
     liftIO $ threadDelay 2000000
-    quoteTectus 4
+    quoteTectus (4 :: Integer)
 
 execute vid Thogar = withPermission Honored vid $ do
     let quotes = ["Redball incoming!"
@@ -196,7 +196,7 @@ execute vid Thogar = withPermission Honored vid $ do
             quoteThogar (i-1)
     sendMessage $ Message 0 vid "Blackhand won't tolerate anymore delays." [] []
     liftIO $ threadDelay 2000000
-    quoteThogar 10
+    quoteThogar (10 :: Integer)
 
 execute vid Status = do
     tdata <- ask
@@ -205,7 +205,7 @@ execute vid Status = do
     sendMessage $ Message 0 vid (show $ Map.findWithDefault User (userID vid) perms) [] []
 
 execute vid (LolEchoWords w msg) = withPermission User vid $ do
-    let w' = map q w
+    let w' = map lolecho w
     sendMessage $ Message 0 vid (unwords w') [] [msgID msg]
     
 
@@ -229,13 +229,14 @@ getCardImage golden (Locale loc) c = do
                     pid <- if golden then uploadDocument "card.gif" (r' ^. W.responseBody) else uploadPhoto (r' ^. W.responseBody)
                     unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
                     return pid
-                Left e -> do
+                Left _ -> do
                     liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
                     return ""
         Just pid -> do
             return pid
     liftIO $ closeAcidState acid
     return pid
+getCardImage g Unknown c = getCardImage g (Locale "enUS") c
 
 downloadFile :: String -> IO (Either E.SomeException BS.ByteString)
 downloadFile url = do
@@ -256,7 +257,7 @@ getCardSound (Locale loc) st c = do
             url <- soundURL <$> atomcfg
             let filenames :: [String]
                 filenames = do
-                    number <- [1..9]
+                    number <- [1..9] :: [Integer]
                     soundtype <- [map toUpper (show st), show st]
                     return ("VO_" ++ cardID c ++ "_" ++ soundtype ++ "_0" ++ show number ++ ".mp3")
                 audiourls = map (\x -> url ++ (if loc == "enUS" then "" else map toLower loc ++ "/") ++ x) filenames
@@ -265,7 +266,7 @@ getCardSound (Locale loc) st c = do
                 downloader (fname:fnames) = do
                     x <- downloadFile fname
                     case x of
-                        Left e -> downloader fnames
+                        Left _ -> downloader fnames
                         Right res -> return $ Just res
             d <- liftIO $ downloader audiourls
             p <- case d of
@@ -277,3 +278,5 @@ getCardSound (Locale loc) st c = do
             return p
     liftIO $ closeAcidState acid
     return pid
+
+getCardSound Unknown st c = getCardSound (Locale "enUS") st c

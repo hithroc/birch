@@ -5,12 +5,10 @@ import Card.Type as X
 import Card.Json as X
 import Data.Char
 import Data.List
-import Data.Maybe
 import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 import qualified Data.Set as S
-import Control.Concurrent.STM
 
 type Cards = [Card]
 
@@ -34,7 +32,7 @@ searchLocalized' f n cards = matching
         loclist c = Map.toList . locToMap $ f c
         comp x = map toUpper n `isInfixOf` map toUpper x
         complocs :: [(Locale, String)] -> [Bool]
-        complocs = map (\(loc, n') -> comp n')
+        complocs = map (\(_, n') -> comp n')
         prio = priority [(==(Locale "ruRU")),(==(Locale "enUS"))] . map snd
         matching :: [(Locale, Card)]
         matching = map (\(x,y) -> (prio $ filter fst (zip (complocs x) (map fst x)), y)) 
@@ -66,7 +64,7 @@ processTag (Loc l) (_,c) = return (l,c)
 processTag _ x = return x
 
 processTags :: MonadCardsDB m => [CardTag] -> (Locale, Card) -> m (Locale, Card)
-processTags tags card = foldl (\a b -> a >>= processTag b) (return card) tags
+processTags tags lcard = foldl (\a b -> a >>= processTag b) (return lcard) tags
 
 processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, String) -> m (S.Set CardTag, (Locale, Card))
 processCard prio (tags, n) = do

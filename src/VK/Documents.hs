@@ -3,7 +3,6 @@ module VK.Documents where
 import VK.Types
 import VK.Base
 import Control.Lens
-import Control.Monad
 import Control.Monad.Trans
 import Data.Aeson
 import qualified Network.Wreq as W

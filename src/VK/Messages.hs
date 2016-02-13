@@ -12,7 +12,6 @@ import Control.Monad.Trans
 import System.Log.Logger
 import Network.HTTP.Client (HttpException(..))
 import qualified Network.Wreq as W
-import qualified Data.Text as T
 import qualified Control.Exception as E
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as Map
