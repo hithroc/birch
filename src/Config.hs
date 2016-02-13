@@ -8,6 +8,8 @@ import Control.Monad.Ether.Implicit
 import qualified Data.Map as Map
 import UserManagment
 import Control.Concurrent.STM
+import qualified Control.Exception as E
+import System.Log.Logger
 
 type Aliases = Map.Map String String
 
@@ -43,4 +45,11 @@ instance FromJSON Config where
 type MonadConfig = MonadReader (TVar Config)
 
 loadConfig :: FilePath -> IO (Maybe Config)
-loadConfig path = decode <$> BS.readFile path
+loadConfig path = do
+    str <- (Just <$> BS.readFile path) `E.catch` handler
+    return $ str >>= decode
+    where
+        handler :: E.SomeException -> IO (Maybe BS.ByteString)
+        handler _ = do
+            noticeM rootLoggerName $ "Failed to load file at " ++ path
+            return Nothing

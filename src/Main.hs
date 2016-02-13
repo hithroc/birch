@@ -1,7 +1,7 @@
 module Main where
 
 import Config
-import Card
+import Card hiding (name)
 import Data.Foldable
 import Control.Monad.Trans
 import Control.Monad.Ether.Implicit
@@ -9,79 +9,77 @@ import System.Log.Logger
 import System.Log.Formatter
 import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple hiding (priority)
-import System.IO
 import VK
+import Data.Maybe
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception as E
-import System.Exit
 import Version
 import Command
 import Control.Concurrent.Lifted (fork)
 import Control.Monad.Trans.Control
 
+import System.Directory
+import System.Posix.Daemonize (CreateDaemon(..), serviced, simpleDaemon, fatalError)
+import System.Posix.User
 
 main :: IO ()
-main = do
-    hSetBuffering stdout NoBuffering
-    initLogger
-    infoM rootLoggerName $ "Birch ver. " ++ version
-    relaunch
-    where
-        handlers :: Int -> [Handler ()]
-        handlers i = [E.Handler interruptHandler, E.Handler exitHandler, E.Handler $ mainHandler i]
-        relaunch = main' `E.catches` handlers 5
-        main' = do
-            cfg <- loadConfig "config.json"
-            let initCfg :: (MonadConfig m, MonadIO m, MonadBaseControl IO m) => m ()
-                initCfg = do
-                    cards <- readCards
-                    tdata <- liftIO . atomically . newTVar $ defaultVKData
-                    runReaderT (runReaderT initVK cards) tdata
-                initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
-                initVK = do
-                    login
-                    myUser <- getUser Nothing
-                    case myUser of
-                        Nothing -> liftIO $ warningM rootLoggerName "Failed to fetch user's name!"
-                        Just myUser' -> do
-                            tdata <- ask
-                            liftIO . atomically . modifyTVar tdata $ (\x -> x { logUser = myUser' })
-                    fork $ friendsLoop
-                    loop
-            case cfg of
-                Nothing -> do
-                    errorM rootLoggerName "Failed to load config.json!"
-                    exitFailure
-                Just cfg' -> do
-                    tcfg <- atomically . newTVar $ cfg'
-                    void $ runReaderT initCfg tcfg
-        mainHandler :: Int -> SomeException -> IO ()
-        mainHandler 0 _ = do
-            emergencyM rootLoggerName $ "It's dead, Jim"
-            error "The program is completely crashed"
-        mainHandler i e = do
-            criticalM rootLoggerName $ "The program crashed with an exception: "
-                                     ++ E.displayException e
-                                     ++ "! Fix this!"
-            infoM rootLoggerName $ "Recovering from crash"
-            main' `E.catches` handlers (i-1)
-        exitHandler :: ExitCode -> IO ()
-        exitHandler (ExitFailure _) = exitFailure
-        exitHandler _ = relaunch
+main = (serviced $ simpleDaemon { privilegedAction = rootInit, program = main' })
 
-        interruptHandler UserInterrupt = return ()
-        interruptHandler _ = relaunch
-
-initLogger :: IO ()
-initLogger = do
+rootInit :: IO ()
+rootInit = do
+    -- Initialize logger
     let form = simpleLogFormatter "$time [$prio]\t$msg"
-    fhand <- fileHandler "./vkbot.log" DEBUG
-    shand <- streamHandler stderr WARNING
-    let fhand' = setFormatter fhand form
-        shand' = setFormatter shand form
-    updateGlobalLogger rootLoggerName $ setHandlers [fhand', shand']
+    fhand <- fileHandler "/var/log/birch.log" DEBUG
+    updateGlobalLogger rootLoggerName $ setHandlers [setFormatter fhand form]
     updateGlobalLogger rootLoggerName $ setLevel DEBUG
+    infoM rootLoggerName $ "Birch Daemon ver. " ++ version
+
+
+
+loadConfigs :: IO (Maybe Config)
+loadConfigs = do
+    home <- homeDirectory <$> (getEffectiveUserID >>= getUserEntryForID)
+    let dirs = [ home ++ "/.birch"
+               , "/etc/birch.cfg" -- Upgrade directory package later
+               ]
+    x <- (traverse loadConfig dirs)
+    return (join . listToMaybe . dropWhile isNothing $ x)
+
+main' :: () -> IO ()
+main' _ = do
+    -- Read config
+    cfg <- loadConfigs
+    case cfg of
+        Nothing -> do
+            let logmsg = "Failed to load config file!"
+            criticalM rootLoggerName logmsg
+            fatalError logmsg
+        Just cfg' -> do
+            infoM rootLoggerName "Initialization finished"
+            createDirectoryIfMissing True $ dataFol cfg'
+            tcfg <- atomically . newTVar $ cfg'
+            void $ runReaderT initCfg tcfg
+    where
+        initCfg :: (MonadConfig m, MonadIO m, MonadBaseControl IO m) => m ()
+        initCfg = do
+            cards <- readCards
+            tdata <- liftIO . atomically . newTVar $ defaultVKData
+            runReaderT (runReaderT initVK cards) tdata
+        initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
+        initVK = do
+            login
+            myUser <- getUser Nothing
+            case myUser of
+                Nothing -> do
+                    let logmsg = "Failed to fetch user's name!"
+                    liftIO $ criticalM rootLoggerName logmsg
+                    liftIO $ fatalError logmsg
+                Just myUser'@(VKUser _ fn ln) -> do
+                    liftIO $ infoM rootLoggerName $ "User's name is " ++ fn ++ " " ++ ln
+                    tdata <- ask
+                    liftIO . atomically . modifyTVar tdata $ (\x -> x { logUser = myUser' })
+            fork $ friendsLoop
+            loop
 
 loop :: (MonadVK m, MonadCardsDB m) => m ()
 loop = do

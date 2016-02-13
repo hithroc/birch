@@ -216,10 +216,11 @@ getCardImage golden (Locale loc) c = do
     tcfg <- ask
     let atomcfg = liftIO . atomically . readTVar $ tcfg
     url <- imageURL <$> atomcfg
+    folder <- dataFol <$> atomcfg
     let path = if golden then "/animated/" else "/original/"
         ext = if golden then "_premium.gif" else ".png"
         imgurl = url ++ map toLower loc ++ path ++ cardID c ++ ext ++ "?10833" -- Magic Number
-    acid <- liftIO $ openLocalState (CardPics Map.empty)
+    acid <- liftIO $ openLocalStateFrom folder (CardPics Map.empty)
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
         Nothing -> do
@@ -248,8 +249,9 @@ getCardSound :: (MonadVK m, MonadCardsDB m) => Locale -> SoundType -> Card -> m 
 getCardSound (Locale loc) st c = do
     tcfg <- ask
     let atomcfg = liftIO . atomically . readTVar $ tcfg
+    folder <- dataFol <$> atomcfg
     let audiouid = show st ++ loc ++ cardID c
-    acid <- liftIO $ openLocalState (AudioIds Map.empty)
+    acid <- liftIO $ openLocalStateFrom folder (AudioIds Map.empty)
     mbAudio <- liftIO $ query acid (GetAudio audiouid)
     pid <- case if isNotFound c then Just "" else mbAudio of
         Just x -> return x

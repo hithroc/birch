@@ -19,6 +19,7 @@ import VK.Types
 import qualified Data.Map as Map
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
+import System.Posix.Daemonize (fatalError)
 
 defaultDispatcher :: Dispatcher
 defaultDispatcher at ver meth args = do
@@ -80,7 +81,10 @@ login = do
     let e = V.env aid vklog vkpass rs
     at' <- liftIO $ V.login e
     case at' of
-        Left s -> liftIO . errorM rootLoggerName $ "VK Login error: " ++ s
+        Left s -> do
+            let logmsg = "VK login error: " ++ s
+            liftIO $ errorM rootLoggerName logmsg
+            fatalError logmsg
         Right (at, suid, expstr) -> do
             liftIO . infoM rootLoggerName $ "Login as " ++ suid ++ " successfull"
             curtime <- liftIO $ getCurrentTime
