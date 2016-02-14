@@ -13,4 +13,5 @@
     }
 , "quotebanned": []
 , "quotecd": 0
+, "autoaccept": false
 }

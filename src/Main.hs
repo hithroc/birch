@@ -68,6 +68,8 @@ main' _ = do
         initVK :: (MonadVK m, MonadIO m, MonadCardsDB m) => m ()
         initVK = do
             login
+            tcfg <- ask
+            cfg <- liftIO . atomically . readTVar $ tcfg
             myUser <- getUser Nothing
             case myUser of
                 Nothing -> do
@@ -78,7 +80,10 @@ main' _ = do
                     liftIO $ infoM rootLoggerName $ "User's name is " ++ fn ++ " " ++ ln
                     tdata <- ask
                     liftIO . atomically . modifyTVar tdata $ (\x -> x { logUser = myUser' })
-            fork $ friendsLoop
+            fork $ when (autoAccept cfg) $ do
+                liftIO $ infoM rootLoggerName "Autoaccepting friends"
+                friendsLoop
+            liftIO $ infoM rootLoggerName "Main loop started"
             loop
 
 loop :: (MonadVK m, MonadCardsDB m) => m ()

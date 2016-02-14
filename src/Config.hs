@@ -25,6 +25,7 @@ data Config = Config
     , userperm :: UserPermissions
     , bannedForQuote :: [Integer]
     , quoteCD :: NominalDiffTime
+    , autoAccept :: Bool
     }
 
 instance FromJSON Config where
@@ -40,6 +41,7 @@ instance FromJSON Config where
                         <*> v .: "permissions"
                         <*> v .: "quotebanned"
                         <*> (fromInteger <$> v .: "quotecd")
+                        <*> v .: "autoaccept"
     parseJSON _ = mzero
 
 type MonadConfig = MonadReader (TVar Config)
