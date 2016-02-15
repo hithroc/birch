@@ -62,6 +62,7 @@ main' _ = do
     where
         initCfg :: (MonadConfig m, MonadIO m, MonadBaseControl IO m) => m ()
         initCfg = do
+            downloadSetIfMissing
             cards <- readCards
             tdata <- liftIO . atomically . newTVar $ defaultVKData
             runReaderT (runReaderT initVK cards) tdata

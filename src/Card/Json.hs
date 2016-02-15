@@ -11,6 +11,7 @@ import Card.Type
 import qualified Data.ByteString.Lazy as BS
 import System.Log.Logger
 import Control.Concurrent.STM
+import System.Directory (doesFileExist)
 
 downloadSet :: (MonadConfig m, MonadIO m) => m ()
 downloadSet = do
@@ -22,6 +23,14 @@ downloadSet = do
     r <- liftIO . W.get $ url
     liftIO $ BS.writeFile (folder ++ "cards.json") (r ^. W.responseBody)
     liftIO $ infoM rootLoggerName ("Downloaded cards.json")
+
+downloadSetIfMissing :: (MonadConfig m, MonadIO m) => m ()
+downloadSetIfMissing = do
+    tcfg <- ask
+    let atomcfg = liftIO . atomically . readTVar $ tcfg
+    folder <- dataFol <$> atomcfg
+    exist <- liftIO . doesFileExist $ folder ++ "cards.json"
+    when (not exist) downloadSet
 
 readCards :: (MonadConfig m, MonadIO m) => m [Card]
 readCards = do
