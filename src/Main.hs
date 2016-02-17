@@ -23,7 +23,7 @@ import System.Posix.Daemonize (CreateDaemon(..), serviced, simpleDaemon, fatalEr
 import System.Posix.User
 
 main :: IO ()
-main = (serviced $ simpleDaemon { privilegedAction = rootInit, program = main' })
+main = serviced $ simpleDaemon { privilegedAction = rootInit, program = main' }
 
 rootInit :: IO ()
 rootInit = do
@@ -34,15 +34,13 @@ rootInit = do
     updateGlobalLogger rootLoggerName $ setLevel DEBUG
     infoM rootLoggerName $ "Birch Daemon ver. " ++ version
 
-
-
 loadConfigs :: IO (Maybe Config)
 loadConfigs = do
     home <- homeDirectory <$> (getEffectiveUserID >>= getUserEntryForID)
     let dirs = [ home ++ "/.birch"
                , "/etc/birch.cfg" -- Upgrade directory package later
                ]
-    x <- (traverse loadConfig dirs)
+    x <- traverse loadConfig dirs
     return (join . listToMaybe . dropWhile isNothing $ x)
 
 main' :: () -> IO ()

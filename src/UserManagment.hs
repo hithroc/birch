@@ -15,7 +15,7 @@ data Permission
     deriving (Eq, Ord, Show, Read)
 
 permMsgs :: Map.Map Permission String
-permMsgs = Map.fromList $
+permMsgs = Map.fromList
     [(Banned, "Sorry, but you are banned. You probably deserve it though." :: String)]
 
 instance FromJSON UserPermissions where

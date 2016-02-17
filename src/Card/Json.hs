@@ -15,14 +15,14 @@ import System.Directory (doesFileExist)
 
 downloadSet :: (MonadConfig m, MonadIO m) => m ()
 downloadSet = do
-    liftIO $ infoM rootLoggerName ("Downloading cards.json...")
+    liftIO $ infoM rootLoggerName "Downloading cards.json..."
     tcfg <- ask
     let atomcfg = liftIO . atomically . readTVar $ tcfg
     url <- jsonURL <$> atomcfg
     folder <- dataFol <$> atomcfg
     r <- liftIO . W.get $ url
     liftIO $ BS.writeFile (folder ++ "cards.json") (r ^. W.responseBody)
-    liftIO $ infoM rootLoggerName ("Downloaded cards.json")
+    liftIO $ infoM rootLoggerName "Downloaded cards.json"
 
 downloadSetIfMissing :: (MonadConfig m, MonadIO m) => m ()
 downloadSetIfMissing = do
@@ -30,7 +30,7 @@ downloadSetIfMissing = do
     let atomcfg = liftIO . atomically . readTVar $ tcfg
     folder <- dataFol <$> atomcfg
     exist <- liftIO . doesFileExist $ folder ++ "cards.json"
-    when (not exist) downloadSet
+    unless exist downloadSet
 
 readCards :: (MonadConfig m, MonadIO m) => m [Card]
 readCards = do
@@ -39,6 +39,6 @@ readCards = do
     folder <- dataFol <$> atomcfg
     (o :: Maybe [Value]) <- liftIO $ decode <$> BS.readFile (folder ++ "cards.json")
     let c :: [Card]
-        c = fromMaybe [] $ fmap (mapMaybe (decode . encode)) o
+        c = maybe [] (mapMaybe (decode . encode)) o
     liftIO . infoM rootLoggerName $ "Loaded card database of total " ++ show (length c) ++ " cards"
     return c

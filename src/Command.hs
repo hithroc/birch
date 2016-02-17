@@ -55,10 +55,10 @@ parseCommand msg@(Message {message = msgtext}) = do
         Just ("tectus":_) -> Tectus
         Just ("status":_) -> Status
         Just ("lolecho":w) -> LolEchoWords w msg
-        Just (["random", "legendary"]) -> CardCraft LEGENDARY
-        Just (["random", "epic"]) -> CardCraft EPIC
-        Just (["random","rare"]) -> CardCraft RARE
-        Just (["random","common"]) -> CardCraft COMMON
+        Just ["random","legendary"] -> CardCraft LEGENDARY
+        Just ["random","epic"]      -> CardCraft EPIC
+        Just ["random","rare"]      -> CardCraft RARE
+        Just ["random","common"]    -> CardCraft COMMON
         Nothing -> CardRequest msg
         Just _ -> CardRequest msg
 
@@ -105,10 +105,10 @@ execute vid (CardRequest msg) = do
                 let action x = case x of
                         Snd st -> getCardSound loc st c
                         _ -> return ""
-                traverse (action) $ S.toList tags
-        aattachments <- concat <$> traverse (audioget) filtCards
+                traverse action $ S.toList tags
+        aattachments <- concat <$> traverse audioget filtCards
 
-        let retmsg = Message 0 vid (unlines . map (\(tags, x) -> (if S.member PrintText tags || pattachments == [] then uncurry printCard else const "") x) $ filtCards) (pattachments ++ aattachments) []
+        let retmsg = Message 0 vid (unlines . map (\(tags, x) -> (if S.member PrintText tags || null pattachments then uncurry printCard else const "") x) $ filtCards) (pattachments ++ aattachments) []
         sendMessage retmsg
 
 execute vid Quote = withPermission User vid $ do
@@ -122,10 +122,10 @@ execute vid Quote = withPermission User vid $ do
     res <- dispatch "messages.getById" [("message_ids", show r)]
     let msgs = maybe [] (\(MessageResponse x) -> x) (decode res :: Maybe MessageResponse)
     case msgs of
-        (x:_) -> do
-            if userID (uid x) `elem` banned then do
+        (x:_) ->
+            if userID (uid x) `elem` banned then
                 execute vid Quote
-            else do
+            else
                 sendMessage $ Message 0 vid "Here is a quote for you:" [] [r]
         _ -> execute vid Quote
 
@@ -135,18 +135,18 @@ execute vid Update = withPermission Admin vid $ do
 
 execute vid (CardCraft r) = withPermission User vid $ do
     (cards' :: Cards) <- ask
-    let cards = filter (\c -> rarity c == r && collectible c) $ cards'
-    if length cards == 0 then
+    let cards = filter (\c -> rarity c == r && collectible c) cards'
+    if null cards then
         sendMessage $ Message 0 vid "Something wrong happened" [] []
     else do
         num <- liftIO $ randomRIO (0, length cards - 1)
-        execute vid (CardRequest $ Message 0 vid ("[[" ++ (unlocalize (Locale "enUS") $ name (cards !! num)) ++ "]]") [] [])
+        execute vid (CardRequest $ Message 0 vid ("[[" ++ unlocalize (Locale "enUS") (name (cards !! num)) ++ "]]") [] [])
 
 execute vid Tectus = withPermission Honored vid $ do
     let quoteTectus 0 = sendMessage $ Message 0 vid "Even the mountain... falls..." [] []
         quoteTectus i = do
             r <- liftIO $ randomRIO (1, 7)
-            sendMessage $ Message 0 vid ((concat $ replicate r "RI-") ++ "RISE MOUNTAINS") [] []
+            sendMessage $ Message 0 vid (concat (replicate r "RI-") ++ "RISE MOUNTAINS") [] []
             liftIO $ threadDelay 2000000
             quoteTectus (i-1)
     sendMessage $ Message 0 vid "What is this?!..." [] []
@@ -211,7 +211,7 @@ execute vid (LolEchoWords w msg) = withPermission User vid $ do
 
 execute vid _ = sendMessage $ Message 0 vid "The command is not implemented yet" [] []
 
-getCardImage :: (MonadVK m, MonadCardsDB m) => Bool -> Locale -> Card -> m (String)
+getCardImage :: (MonadVK m, MonadCardsDB m) => Bool -> Locale -> Card -> m String
 getCardImage golden (Locale loc) c = do
     tcfg <- ask
     let atomcfg = liftIO . atomically . readTVar $ tcfg
@@ -224,7 +224,7 @@ getCardImage golden (Locale loc) c = do
     mbPic <- liftIO $ query acid (GetPic imgurl)
     pid <- case if isNotFound c then Just "" else mbPic of
         Nothing -> do
-            r <- liftIO $ ((Right <$> W.get imgurl) `E.catch` \(e :: E.SomeException) -> return (Left e))
+            r <- liftIO ((Right <$> W.get imgurl) `E.catch` \(e :: E.SomeException) -> return (Left e))
             case r of
                 Right r' -> do
                     pid <- if golden then uploadDocument "card.gif" (r' ^. W.responseBody) else uploadPhoto (r' ^. W.responseBody)
@@ -233,7 +233,7 @@ getCardImage golden (Locale loc) c = do
                 Left _ -> do
                     liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
                     return ""
-        Just pid -> do
+        Just pid ->
             return pid
     liftIO $ closeAcidState acid
     return pid
@@ -243,9 +243,9 @@ downloadFile :: String -> IO (Either E.SomeException BS.ByteString)
 downloadFile url = do
     infoM rootLoggerName $ "Downloading " ++ url
     r <- (Right <$> W.get url) `E.catch` \(e :: E.SomeException) ->  return (Left e)
-    return (fmap (\x -> x ^. W.responseBody) r)
+    return (fmap (^. W.responseBody) r)
 
-getCardSound :: (MonadVK m, MonadCardsDB m) => Locale -> SoundType -> Card -> m (String)
+getCardSound :: (MonadVK m, MonadCardsDB m) => Locale -> SoundType -> Card -> m String
 getCardSound (Locale loc) st c = do
     tcfg <- ask
     let atomcfg = liftIO . atomically . readTVar $ tcfg

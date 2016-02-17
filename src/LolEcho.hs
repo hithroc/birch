@@ -78,4 +78,4 @@ ugly = convert table return
             ]
 
 lolecho :: String -> String
-lolecho = concatMap ugly . concatMap latin . map toLower
+lolecho = concatMap ugly . concatMap (latin . toLower)

@@ -19,7 +19,7 @@ priority (p:ps) xs = if null f then priority ps xs else priority ps f
         f = filter p xs
 
 printCards :: Locale -> Cards -> String
-printCards l cs = unlines . map (printCard l) $ cs
+printCards l = unlines . map (printCard l)
 
 type MonadCardsDB = MonadReader Cards
 
@@ -33,7 +33,7 @@ searchLocalized' f n cards = matching
         comp x = map toUpper n `isInfixOf` map toUpper x
         complocs :: [(Locale, String)] -> [Bool]
         complocs = map (\(_, n') -> comp n')
-        prio = priority [(==(Locale "ruRU")),(==(Locale "enUS"))] . map snd
+        prio = priority [(==Locale "ruRU"),(==Locale "enUS")] . map snd
         matching :: [(Locale, Card)]
         matching = map (\(x,y) -> (prio $ filter fst (zip (complocs x) (map fst x)), y)) 
                  . filter (\(x, _) -> or $ complocs x) 
@@ -41,7 +41,7 @@ searchLocalized' f n cards = matching
                  $ cards
 
 exactSearchBy' :: (Card -> String) -> String -> [Card] -> [Card]
-exactSearchBy' f n = filter $ \c -> n == (f c)
+exactSearchBy' f n = filter $ \c -> n == f c
 
 searchBy :: MonadCardsDB m => (Card -> String) -> String -> m Cards
 searchBy f n = do
@@ -70,7 +70,7 @@ processCard :: (MonadCardsDB m, MonadIO m) => [Card -> Bool] -> (S.Set CardTag, 
 processCard prio (tags, n) = do
     cards <- searchLocalized name n
     if null cards then
-        return $ (tags, (Locale "enUS", notFoundCard { name = Localized $ Map.singleton (Locale "enUS") n }))
+        return (tags, (Locale "enUS", notFoundCard { name = Localized $ Map.singleton (Locale "enUS") n }))
     else do
         let resultcard = priority (map (.snd) prio) cards
         (\x -> (tags, x)) <$> processTags (S.toList tags) resultcard
