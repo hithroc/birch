@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import Control.Concurrent.STM
 import Control.Monad.Trans.Control
 
-type Dispatcher = String -> String -> String -> [(String, String)] -> IO BS.ByteString
+type Dispatcher = String -> String -> String -> [(String, String)] -> IO (Either (Int, String) BS.ByteString)
 data LongPollServer = LongPollServer { lpskey :: String, lpsurl :: String, lpsts :: Integer }
 type MonadVK m = (MonadConfig m, MonadReader (TVar VKData) m, MonadIO m, MonadBaseControl IO m)
 

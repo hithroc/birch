@@ -27,18 +27,14 @@ defaultDispatcher at ver meth args = do
     r <- W.getWith opts' url `E.catch` handler
     case decode (r ^. W.responseBody) of
         Nothing -> do
-            return $ r ^. W.responseBody
+            return . Right $ r ^. W.responseBody
         Just (ErrorResponse code msg) -> case code of
             -- Flood Control
             9 -> do
                 infoM rootLoggerName $ "Recieved flood control."
                 threadDelay 30000000
-                return ("")
-                --defaultDispatcher at ver meth args
-            _ -> do
-                infoM rootLoggerName $ "VK gave a response with error: " ++ msg ++ "(" ++ show code ++ ")"
-                threadDelay 30000000
-                defaultDispatcher at ver meth args
+                return (Right "")
+            _ -> return (Left (code, msg))
     where
         url = "https://api.vk.com/method/" ++ meth
         opts = foldl (&) W.defaults $ map (\(x, y) -> W.param (T.pack x) .~ [T.pack y]) args'
@@ -66,7 +62,17 @@ dispatch meth args = do
     d <- dispatcher <$> atomized
     at <- accessToken <$> atomized
     ver <- apiVersion <$> atomized
-    liftIO $ d at ver meth args
+    ans <- liftIO $ d at ver meth args
+    case ans of
+        Right x -> return x
+        Left (5, _) -> do
+            liftIO . infoM rootLoggerName $ "Access token expired!"
+            login
+            dispatch meth args
+        Left (code, msg) -> do
+                liftIO $ infoM rootLoggerName $ "VK gave a response with error: " ++ msg ++ "(" ++ show code ++ ")"
+                liftIO $ threadDelay 30000000
+                dispatch meth args
 
 login :: MonadVK m => m ()
 login = do
