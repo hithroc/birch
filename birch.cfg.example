@@ -13,5 +13,6 @@
     }
 , "quotebanned": []
 , "quotecd": 0
+// This option only takes it's effect when the bot is started. You can't change it and then do "reload" command.
 , "autoaccept": false
 }
