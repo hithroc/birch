@@ -53,7 +53,7 @@ data LongPollValue
     deriving (Ord, Eq)
 
 data LongPollResponse = LongPollResponse [[LongPollValue]] Integer
-data ErrorResponse = ErrorResponse Int String
+data ErrorResponse = ErrorResponse Int String String
 
 data PhotoServ = PhotoServ String
 data UploadResponse = UploadResponse Integer String String
@@ -160,7 +160,8 @@ instance FromJSON ErrorResponse where
         res <- v .: "error"
         code <- res .: "error_code"
         msg <- res .: "error_msg"
-        return $ ErrorResponse code msg
+        uri <- res .:? "redirect_uri"
+        return $ ErrorResponse code msg (fromMaybe "" uri)
     parseJSON _ = mzero
 
 instance FromJSON FriendRequests where

@@ -28,11 +28,15 @@ defaultDispatcher at ver meth args = do
     case decode (r ^. W.responseBody) of
         Nothing -> do
             return . Right $ r ^. W.responseBody
-        Just (ErrorResponse code msg) -> case code of
+        Just (ErrorResponse code msg uri) -> case code of
             -- Flood Control
             9 -> do
                 infoM rootLoggerName $ "Recieved flood control."
                 threadDelay 30000000
+                return (Right "")
+            17 -> do
+                criticalM rootLoggerName $ "Redirect URI required (" ++ show code ++ ")"
+                criticalM rootLoggerName uri
                 return (Right "")
             _ -> return (Left (code, msg))
     where
