@@ -38,6 +38,9 @@ defaultDispatcher at ver meth args = do
                 criticalM rootLoggerName $ "Redirect URI required (" ++ show code ++ ")"
                 criticalM rootLoggerName uri
                 return (Right "")
+            100 -> do
+                warningM rootLoggerName $ "Empty request: " ++ meth ++ ":" ++ show args
+                return (Right "")
             _ -> return (Left (code, msg))
     where
         url = "https://api.vk.com/method/" ++ meth
