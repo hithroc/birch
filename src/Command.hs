@@ -14,6 +14,7 @@ import Data.Aeson
 import Data.Char
 import Data.Maybe
 import Data.Acid
+import Data.MD5.Hash
 import CardPictureDB
 import AudioDB
 import Control.Lens
@@ -227,9 +228,14 @@ getCardImage golden (Locale loc) c = do
             r <- liftIO ((Right <$> W.get imgurl) `E.catch` \(e :: E.SomeException) -> return (Left e))
             case r of
                 Right r' -> do
-                    pid <- if golden then uploadDocument "card.gif" (r' ^. W.responseBody) else uploadPhoto (r' ^. W.responseBody)
-                    unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
-                    return pid
+                    let hash = "4bdb77c4cbb524d5f235f85398fa5dd1" -- Hardcoded hash for not found card
+                    if md5s r' == hash then do
+                        liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
+                        return ""
+                    else do
+                        pid <- if golden then uploadDocument "card.gif" (r' ^. W.responseBody) else uploadPhoto (r' ^. W.responseBody)
+                        unless (null pid) . liftIO $ update acid (InsertPic imgurl pid)
+                        return pid
                 Left _ -> do
                     liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
                     return ""
