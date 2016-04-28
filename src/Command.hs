@@ -14,12 +14,12 @@ import Data.Aeson
 import Data.Char
 import Data.Maybe
 import Data.Acid
-import Data.MD5.Hash
+import qualified Crypto.Hash.MD5 as MD5
 import CardPictureDB
 import AudioDB
 import Control.Lens
 import System.Random
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.Map as Map
 import qualified Control.Exception as E
 import qualified Network.Wreq as W
@@ -99,9 +99,16 @@ execute vid (CardRequest msg) = do
     a <- aliases <$> atomcfg
     let parsedCards = parseCards . message $ msg
         aliasedCards = map (\(t, n) -> (t, fromMaybe n $ Map.lookup (map toUpper n) a)) parsedCards
-    filtCards <- traverse (processCard prio) aliasedCards
-    unless (null filtCards) $ do
-        pattachments <- traverse (\(tags, x) -> (uncurry $ getCardImage (S.member Golden tags)) x) filtCards
+    filtCards' <- traverse (processCard prio) aliasedCards
+    unless (null filtCards') $ do
+        let f (fc:fs) = do
+                let (tags, x) = fc
+                pid <- (uncurry $ getCardImage (S.member Golden tags)) x
+                let tags' = if pid == "" then S.insert PrintText tags else tags
+                (fs', pa) <- f fs
+                return ((tags', x):fs', if pid == "" then pa else pid:pa)
+            f [] = return ([],[])
+        (filtCards, pattachments) <- f filtCards'
         let audioget (tags, (loc, c)) = do
                 let action x = case x of
                         Snd st -> getCardSound loc st c
@@ -228,8 +235,10 @@ getCardImage golden (Locale loc) c = do
             r <- liftIO ((Right <$> W.get imgurl) `E.catch` \(e :: E.SomeException) -> return (Left e))
             case r of
                 Right r' -> do
-                    let hash = "4bdb77c4cbb524d5f235f85398fa5dd1" -- Hardcoded hash for not found card
-                    if md5s r' == hash then do
+                    let hash = "K\219w\196\203\181$\213\242\&5\248S\152\250]\209" -- Hardcoded hash for not found card
+                        hashed = MD5.hashlazy (r' ^. W.responseBody)
+                    liftIO $ infoM rootLoggerName $(show hashed)
+                    if hashed == hash then do
                         liftIO . infoM rootLoggerName $ "No image for " ++ unlocalize (Locale "enUS") (name c) ++ " found"
                         return ""
                     else do

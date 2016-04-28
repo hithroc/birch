@@ -70,3 +70,4 @@ executable birch
                ,       lifted-base
                ,       monad-control
                ,       safecopy
+               ,       cryptohash
