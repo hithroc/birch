@@ -12,11 +12,11 @@ import qualified Data.Set as S
 
 type Cards = [Card]
 
-priority :: [a -> Bool] -> [a] -> a
-priority [] xs = head xs
-priority (p:ps) xs = if null f then priority ps xs else priority ps f
+priority :: [a -> Bool] -> ([a] -> [a]) -> [a] -> a
+priority [] s xs = head xs
+priority (p:ps) s xs = if null f then priority ps xs else priority ps f
     where
-        f = filter p xs
+        f = s $ filter p xs
 
 printCards :: Locale -> Cards -> String
 printCards l = unlines . map (printCard l)
@@ -72,5 +72,5 @@ processCard prio (tags, n) = do
     if null cards then
         return (tags, (Locale "enUS", notFoundCard { name = Localized $ Map.singleton (Locale "enUS") n }))
     else do
-        let resultcard = priority (map (.snd) prio) cards
+        let resultcard = priority (map (.snd) prio) (sortBy (\a b -> compare (name a) (name b))) cards
         (\x -> (tags, x)) <$> processTags (S.toList tags) resultcard
